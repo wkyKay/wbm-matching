@@ -1,0 +1,64 @@
+# Local Python environments and generated package files
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+/build/
+/dist/
+
+# Test, lint, notebook and coverage caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Datasets, extracted arrays, experiment outputs and training logs
+# Keep protocol/split.csv: it is required to reproduce the frozen split.
+/artifacts/
+/data/
+/datasets/
+_data/
+/outputs/
+/runs/
+/logs/
+/checkpoints/
+/wandb/
+/mlruns/
+/tensorboard/
+*.log
+events.out.tfevents.*
+*.npy
+*.npz
+*.pkl
+*.pickle
+
+# Trained/exported model weights
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.h5
+*.hdf5
+*.safetensors
+
+# Local environment settings; share only explicit templates
+.env
+.env.*
+!.env.example
+!.env.template
+
+# OS/editor temporary files
+.DS_Store
+.AppleDouble
+._*
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
