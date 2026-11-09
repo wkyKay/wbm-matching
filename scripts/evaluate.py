@@ -24,13 +24,15 @@ def main(argv=None):
                         help="Yu global is the main comparison; predicted_class is a separate auxiliary result")
     parser.add_argument("--device", help="CPU/CUDA inference device; no training is performed")
     parser.add_argument("--workers", type=int, default=1, help="Workers for handcrafted feature preparation")
+    parser.add_argument("--rank-workers", type=int, default=1,
+                        help="Processes for full-candidate query ranking; bounded queue, preserves query order")
     args = parser.parse_args(argv)
     from shared.common import load_config
     from shared.evaluation import run_evaluation
     config = load_config(args.config, require_ks=False)
     result = run_evaluation(config, args.output_dir, split_name=args.split, ks=args.ks,
                             source_run=args.source_run, variant=args.variant,
-                            device=args.device, workers=args.workers)
+                            device=args.device, workers=args.workers, rank_workers=args.rank_workers)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

@@ -77,6 +77,25 @@ class EvaluationFixture(unittest.TestCase):
 
 
 class RunBoundaryTests(EvaluationFixture):
+    def test_parallel_full_evaluation_preserves_rankings_and_metrics(self):
+        config = {**self.config, "method": "wbbs"}
+        serial, parallel = self.root / "serial", self.root / "parallel"
+        a = evaluation.run_evaluation(config, serial, ks=[1, 2], rank_workers=1)
+        b = evaluation.run_evaluation(config, parallel, ks=[1, 2], rank_workers=2)
+        for name in ("rankings.csv", "per_query.csv", "per_class.csv"):
+            self.assertEqual((serial / "valid" / name).read_bytes(),
+                             (parallel / "valid" / name).read_bytes())
+        for key in ("metrics", "class_macro_metrics", "groups"):
+            self.assertEqual(a[key], b[key])
+        self.assertEqual(common.read_json(parallel / "evaluation_manifest.json")["execution"]["rank_workers"], 2)
+
+    def test_invalid_rank_workers_rejected_before_writing(self):
+        for value in (0, -1, True, 1.5):
+            output = self.root / f"invalid_workers_{value}"
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "rank_workers"):
+                evaluation.run_evaluation(self.config, output, ks=[1], rank_workers=value)
+            self.assertFalse(output.exists())
+
     def fake_preparer(self, calls):
         def prepare(bundle, config, pool, destination, **kwargs):
             calls["gallery"] = list(map(int, pool.gallery))

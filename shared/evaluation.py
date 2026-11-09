@@ -6,7 +6,11 @@ runner has its own version/signature and always requires a fresh output folder.
 from __future__ import annotations
 
 import csv
+from collections import deque
+from contextlib import closing
+from concurrent.futures import ProcessPoolExecutor
 import math
+import multiprocessing
 from pathlib import Path
 import time
 
@@ -24,6 +28,64 @@ TRAINED_METHODS = ("yu", "nakazawa")
 SMOKE_KS = (1, 5, 10, 20)
 RUNNER_VERSION = "unified-exact-v1"
 TIE_POLICY = "SHA256(exact_v1:tie:seed:query_id:candidate_id), first 8 bytes big-endian; ID collision fallback"
+
+
+_RANK_WORKER = None
+
+
+def _initialize_rank_worker(ranker):
+    global _RANK_WORKER
+    _RANK_WORKER = ranker
+
+
+def _rank_query(task):
+    query_id, candidates = task
+    started = time.perf_counter()
+    ranked = _RANK_WORKER.rank(int(query_id), candidates)
+    return ranked, time.perf_counter() - started
+
+
+def iter_ranked_queries(ranker, items, workers=1):
+    """Ordered, bounded query execution; each worker sees the full candidate list.
+
+    Spawn avoids inheriting active BLAS/CUDA thread state. At most 2*workers
+    queries are pending; never materialize the test query/candidate Cartesian
+    product. Only immutable prepared features are sent to each worker once.
+    """
+    if type(workers) is not int or workers < 1:
+        raise ValueError("rank_workers must be a positive integer")
+    if workers == 1:
+        for query_id, candidates in items:
+            started = time.perf_counter()
+            ranked = ranker.rank(int(query_id), candidates)
+            yield query_id, candidates, ranked, time.perf_counter() - started
+        return
+    iterator, pending = iter(items), deque()
+    executor = ProcessPoolExecutor(max_workers=workers,
+        mp_context=multiprocessing.get_context("spawn"),
+        initializer=_initialize_rank_worker, initargs=(ranker,))
+    try:
+        def submit_next():
+            try:
+                query_id, candidates = next(iterator)
+            except StopIteration:
+                return False
+            pending.append((query_id, candidates,
+                            executor.submit(_rank_query, (query_id, candidates))))
+            return True
+
+        for _ in range(2 * workers):
+            if not submit_next():
+                break
+        while pending:
+            query_id, candidates, future = pending.popleft()
+            ranked, elapsed = future.result()
+            yield query_id, candidates, ranked, elapsed
+            submit_next()
+    finally:
+        for _, _, future in pending:
+            future.cancel()
+        executor.shutdown(wait=True, cancel_futures=True)
 
 
 def _settings(config):
@@ -187,11 +249,13 @@ def _check_request(config, split_name, ks, variant, workers, tie_seed):
 
 
 def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_run=None,
-                   variant="global", device=None, workers=1, tie_seed=2026):
+                   variant="global", device=None, workers=1, tie_seed=2026, rank_workers=1):
     """Evaluate one method using the frozen pool; never train or select on test."""
     config = dict(config)
     original_run = config["output_dir"]
     ks = _check_request(config, split_name, ks, variant, workers, tie_seed)
+    if type(rank_workers) is not int or rank_workers < 1:
+        raise ValueError("rank_workers must be a positive integer")
     if source_run is not None:
         if config["method"] not in TRAINED_METHODS:
             raise ValueError("source_run is only needed for trained methods Yu/Nakazawa")
@@ -226,6 +290,9 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
             "code": {str(p.relative_to(common.ROOT)): hash_file(p) for p in files},
             "smoke": bool(config.get("smoke", False)), "query_count": len(pool),
             "gallery_count": len(pool.gallery), "candidate_rule": "all_gallery_except_query",
+            "execution": {"feature_workers": workers, "rank_workers": rank_workers,
+                          "rank_start_method": "spawn" if rank_workers > 1 else "serial",
+                          "max_pending_queries": 2 * rank_workers if rank_workers > 1 else 1},
             "candidates_per_query": pool.candidates_per_query,
             "relevance": "exact equality of all eight defect labels",
             "ranking_limit": max(ks), "full_mAP_reported": False}
@@ -257,6 +324,7 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
         ranking_path = destination / "rankings.csv"
         counts_path = destination / "query_diagnostics.csv"
         rank_seconds = []
+        ranking_started = time.perf_counter()
         max_k = max(ks)
         with ranking_path.with_suffix(".csv.tmp").open("x", newline="", encoding="utf-8") as ranks_file, \
                 counts_path.with_suffix(".csv.tmp").open("x", newline="", encoding="utf-8") as counts_file:
@@ -267,32 +335,29 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
             diagnostic.writeheader()
 
             def rankings():
-                for number, (qid, candidates) in enumerate(pool.items(), 1):
-                    tick = time.perf_counter()
-                    ranked = ranker.rank(int(qid), candidates)
-                    elapsed = time.perf_counter() - tick
-                    rank_seconds.append(elapsed)
-                    ids, scores = np.asarray(ranked.ids), np.asarray(ranked.scores)
-                    if (ids.ndim != 1 or ids.dtype.kind not in "iu" or scores.shape != ids.shape
-                            or len(np.unique(ids)) != len(ids) or not np.isin(ids, candidates).all()
-                            or np.isnan(scores).any() or np.isposinf(scores).any()):
-                        raise ValueError("Method returned invalid IDs/scores")
-                    distances = ranked.coarse_distances
-                    if distances is not None and np.asarray(distances).shape != ids.shape:
-                        raise ValueError("Method returned invalid coarse distances")
-                    for position in range(min(max_k, len(ids))):
-                        writer.writerow({"query_id": int(qid), "rank": position + 1,
-                            "candidate_id": int(ids[position]), "score": float(scores[position]),
-                            "coarse_distance": "" if distances is None else float(distances[position])})
-                    diagnostic.writerow({"query_id": int(qid), "input_candidates": len(candidates),
-                        "scored_count": ranked.scored_count,
-                        "coarse_scored_count": getattr(ranked, "coarse_scored_count", 0),
-                        "eligible_count": ranked.eligible_count, "returned": min(max_k, len(ids)),
-                        "ranking_seconds": elapsed})
-                    yield int(qid), ids[:max_k]
-                    if number % 100 == 0 or number == len(pool):
-                        print(f"{config['method']} {split_name}: {number}/{len(pool)} queries", flush=True)
-
+                with closing(iter_ranked_queries(ranker, pool.items(), rank_workers)) as stream:
+                    for number, (qid, candidates, ranked, elapsed) in enumerate(stream, 1):
+                        rank_seconds.append(elapsed)
+                        ids, scores = np.asarray(ranked.ids), np.asarray(ranked.scores)
+                        if (ids.ndim != 1 or ids.dtype.kind not in "iu" or scores.shape != ids.shape
+                                or len(np.unique(ids)) != len(ids) or not np.isin(ids, candidates).all()
+                                or np.isnan(scores).any() or np.isposinf(scores).any()):
+                            raise ValueError("Method returned invalid IDs/scores")
+                        distances = ranked.coarse_distances
+                        if distances is not None and np.asarray(distances).shape != ids.shape:
+                            raise ValueError("Method returned invalid coarse distances")
+                        for position in range(min(max_k, len(ids))):
+                            writer.writerow({"query_id": int(qid), "rank": position + 1,
+                                "candidate_id": int(ids[position]), "score": float(scores[position]),
+                                "coarse_distance": "" if distances is None else float(distances[position])})
+                        diagnostic.writerow({"query_id": int(qid), "input_candidates": len(candidates),
+                            "scored_count": ranked.scored_count,
+                            "coarse_scored_count": getattr(ranked, "coarse_scored_count", 0),
+                            "eligible_count": ranked.eligible_count, "returned": min(max_k, len(ids)),
+                            "ranking_seconds": elapsed})
+                        yield int(qid), ids[:max_k]
+                        if number % 100 == 0 or number == len(pool):
+                            print(f"{config['method']} {split_name}: {number}/{len(pool)} queries", flush=True)
             result = evaluate_rankings(bundle, pool, rankings(), ks, destination, split_name=split_name,
                 metadata={"evaluation_signature": eval_signature, "method": config["method"],
                           "variant": variant, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
@@ -311,11 +376,13 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
                     raise ValueError("Training checkpoint changed during evaluation")
         save_json(destination / "timing.json", {"preparation_seconds": preparation_seconds,
             "ranking_total_seconds": float(sum(rank_seconds)),
+            "ranking_wall_seconds": time.perf_counter() - ranking_started,
             "ranking_mean_seconds": float(np.mean(rank_seconds)),
             "ranking_median_seconds": float(np.median(rank_seconds)),
             "ranking_p95_seconds": float(np.percentile(rank_seconds, 95)),
-            "ranking_scope": "cached features to ranked IDs; excludes metric calculation and CSV writes",
-            "total_seconds": time.perf_counter() - started, "workers": workers,
+            "ranking_scope": "sum of per-query worker times; excludes metric calculation and CSV writes",
+            "ranking_wall_scope": "ranking stage elapsed time including worker startup, metrics, CSV writes and output checks",
+            "total_seconds": time.perf_counter() - started, "workers": workers, "rank_workers": rank_workers,
             "device": config.get("device", "cpu")})
         output_files = {str(path.relative_to(output)): hash_file(path)
                         for path in destination.rglob("*") if path.is_file()}

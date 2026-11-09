@@ -51,6 +51,12 @@ python -c "import sys, torch; print(sys.executable); print(torch.__version__, to
 Yu、Nakazawa 的正式命令以下均显式使用 `--device cuda`。没有 CUDA 时可改为 `--device cpu`，
 训练和推断会在 CPU 执行。三个无训练方法使用 CPU，`--workers 4` 仅并行准备单图特征，
 不表示逐查询的候选匹配也会自动并行。
+完整评价可另加 `--rank-workers N`，将不同 query 分给 N 个进程；每个 query 仍匹配完整
+冻结候选池，按原 query 顺序流式保存，最多只预提交 `2*N` 个 query。
+例如空闲多核服务器可给 WBBS 设置 `--workers 4 --rank-workers 16`，WMHD 设置
+`--workers 4 --rank-workers 48`；按服务器资源调整，不要在普通笔记本照搬进程数。
+每个进程各持有一份特征，应同时检查内存，并用 `OMP_NUM_THREADS=1`、
+`OPENBLAS_NUM_THREADS=1`、`MKL_NUM_THREADS=1` 避免 CPU 线程过量。
 
 默认数据位置应保持为：
 
@@ -266,6 +272,7 @@ python -u scripts/evaluate.py \
 | 完成标记 | `artifacts/evaluation_exact_v1/wbbs_test/completed.json` |
 
 WBBS 没有 checkpoint。每对图需要点集匹配，正式 test 耗时取决于点数，`--workers` 只加速特征准备。
+用 `--rank-workers` 可并行不同 query 的全候选匹配。
 论文参数与实现约定见 [WBBS README](../methods/wbbs/README.md)。
 
 ## 6 Nakazawa CNN
@@ -376,6 +383,7 @@ python -u scripts/evaluate.py \
 
 `scalars` 的四列依次是坐标归一化所用的原图半径（像素单位）、beta、原始缺陷点数、真实 die 数。WMHD 没有 checkpoint。
 完整 test 的点集匹配可能耗时较长；当前固定方向及参数的复现边界见 [WMHD README](../methods/wmhd/README.md)。
+`--rank-workers` 可并行不同 query；不对候选抽样，也不改变 WMHD 的方向。
 
 ## 8 统一评价产物怎么读
 
@@ -419,6 +427,10 @@ wu_test/
 CNN 还会在 `test/` 下保存 `inference_environment.json`，记录推断种子、线程与 cuDNN 设置。
 Yu 另有 `test/prepared/encoder.npz`。两个 CNN 的训练入口默认共用
 `artifacts/training_exact_v1/_data/` 下按原始数据哈希区分的数组缓存；统一评价另建各自的 `raw_cache/`。
+
+开启 query 并行后，`timing.json` 的 `ranking_total_seconds` 是各 query 工作进程耗时之和，
+不是实际等待时间；`ranking_wall_seconds` 是排名阶段实际耗时，包含进程启动、指标计算、
+CSV 写入与输出检查。执行进程数和队列上限记录在 `evaluation_manifest.json.execution`。
 
 `query_diagnostics.csv` 中，`coarse_scored_count` 是 Wu 全库欧氏距离计算数，其他方法为 0；
 `scored_count` 是最终相似度计算数，Wu 仅计粗筛入选后的 NCC 数量；`eligible_count` 是粗筛或门控后可返回数，

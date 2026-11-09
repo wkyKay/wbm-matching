@@ -3,6 +3,23 @@
 本文件随目录整理移入 `docs/`。下方历史命令保留执行时的旧路径；当前运行入口见
 [总说明](../README.md)，方法位于 `methods/`，协议生成脚本位于 `scripts/`。
 
+## 全候选 query 并行执行检查（2026-11-09）
+
+正式全流程运行前新增 `--rank-workers`：只并行不同 query，各 query 的完整候选、
+打分公式、并列规则与保存顺序不变。使用 spawn，每进程初始化一份只读特征，最多
+预提交两倍进程数的 query，避免展开完整 test 配对到内存。未修改训练源码或配置。
+
+- Linux 全套 **155 项测试通过**。新增覆盖五方法串行/spawn 排名与分数一致、粗筛边界
+  并列、WMHD 空图负无穷、进程异常传播、有限队列及资源关闭、端到端评价一致与参数检查。
+- Wu、WBBS、WMHD 真实数据 smoke 在相同单线程 BLAS 设置下，1 与 3 个 query 进程的
+  `rankings.csv`、`per_query.csv`、`per_class.csv` 逐字节一致，总体/类别宏平均/分组指标一致。
+- 对照旧的四线程 BLAS Wu smoke，排名 ID 不变，分数最大差约 `1.1e-6`；因此进程一致性
+  检查固定同一 BLAS 设置，不将不同线程库归约顺序造成的浮点差异混入并行对照。
+
+证据位于服务器 `artifacts/formal_exact_20261109_120738/` 的 `parallel_tests.log`、
+`parallel_smoke/equivalence.json`、`parallel_smoke/` 与 `serial_smoke/`。
+此节仅记录执行器验证，不表示该目录下正式训练与完整 test 已全部完成。
+
 ## Linux / CUDA 五方法 smoke（2026-11-09）
 
 在现有 Conda `wbm` 环境验证：Python 3.10、NumPy 1.24.3、SciPy 1.15.3、
