@@ -1,0 +1,41 @@
+{
+  "method": "nakazawa",
+  "seed": 2026,
+  "data_file": "../data/wm38k/Wafer_Map_Datasets.npz",
+  "split_file": "protocol/deduplicated/split.csv",
+  "retrieval_protocol_dir": "protocol/retrieval_v1",
+  "output_dir": "artifacts/nakazawa_smoke_retrieval_v1",
+  "expected_classes": 37,
+  "smoke": true,
+  "device": "cpu",
+  "num_workers": 0,
+  "torch_threads": 2,
+  "inference_batch_size": 2,
+  "subset": {
+    "train_per_class": 1,
+    "valid_per_class": 2,
+    "normal_train": null,
+    "normal_valid": null
+  },
+  "parameters": {
+    "input_shape": [286, 400],
+    "input_channels": 1,
+    "conv_padding": "valid",
+    "dropout": 0.5,
+    "resize": "nearest",
+    "initialization": "xavier_uniform"
+  },
+  "training": {
+    "epochs": 1,
+    "batch_size": 2,
+    "micro_batch_size": 1,
+    "optimizer": "adam",
+    "learning_rate": 0.001,
+    "betas": [0.9, 0.999],
+    "epsilon": 1e-8,
+    "weight_decay": 0.0,
+    "selection": "last_epoch",
+    "max_train_batches": 1,
+    "max_valid_batches": 1
+  }
+}

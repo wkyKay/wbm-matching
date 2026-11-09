@@ -2,16 +2,20 @@
   "method": "wu",
   "seed": 2026,
   "data_file": "../data/wm38k/Wafer_Map_Datasets.npz",
-  "split_file": "protocol/split.csv",
-  "output_dir": "artifacts/wu_smoke",
+  "split_file": "protocol/deduplicated/split.csv",
+  "output_dir": "artifacts/wu_smoke_retrieval_v1",
   "subset": {
     "train_per_class": 10,
     "valid_per_class": 2,
     "normal_train": 32,
     "normal_valid": 16
   },
-  "valid_pool": {"queries": 37, "candidates": 73, "seed": 2026},
-  "ks": [1, 5, 10, 20],
+  "ks": [
+    1,
+    5,
+    10,
+    20
+  ],
   "parameters": {
     "coarse_candidates": 500,
     "beta": 0.5,
@@ -30,7 +34,12 @@
     "hough_band_half_width": 0.5,
     "hough_min_length_fraction": 0.1,
     "hough_max_gap_fraction": 0.03,
-    "rerank_shape": [52, 52],
+    "rerank_shape": [
+      52,
+      52
+    ],
     "numerical_epsilon": 1e-12
-  }
+  },
+  "retrieval_protocol_dir": "protocol/retrieval_v1",
+  "smoke": true
 }

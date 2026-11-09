@@ -1,0 +1,25 @@
+{
+  "method": "wmhd",
+  "seed": 2026,
+  "data_file": "../data/wm38k/Wafer_Map_Datasets.npz",
+  "split_file": "protocol/deduplicated/split.csv",
+  "retrieval_protocol_dir": "protocol/retrieval_v1",
+  "output_dir": "artifacts/wmhd_retrieval_v1",
+  "subset": {
+    "train_per_class": null,
+    "valid_per_class": null,
+    "normal_train": null,
+    "normal_valid": null
+  },
+  "parameters": {
+    "esrn_iterations": 1,
+    "esrn_good_threshold": 0.625,
+    "esrn_defect_threshold": 0.625,
+    "mountain_m": 0.1,
+    "matching_tolerance": 0.1,
+    "weight_design": "W2",
+    "outlier_penalty": true,
+    "point_chunk_size": 256,
+    "numerical_epsilon": 1e-12
+  }
+}

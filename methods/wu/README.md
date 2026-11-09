@@ -4,6 +4,10 @@
 
 这里独立实现论文的 WMSR 检索分支，不是作者原始代码。原论文研究 WM-811K；本实现把相同方法用于 MixedWM38，因此不把这里的结果称为原论文结果复现。SVM 分类属于独立的 WMFPR 分支，本任务不训练 SVM。
 
+五方法比较请使用[统一完整组合评价](../../docs/EXACT_EVALUATION.md)的 `scripts/evaluate.py`。
+它保留默认粗筛 500 和 NCC 重排，在粗筛边界及最终并列处使用统一 SHA-256 规则；
+下面的原方法 CLI 继续保留，旧原始 ID 并列结果不能与 exact_v1 混比。
+
 ## 流程与特征
 
 每张图生成一个 116 维向量，查询先按欧氏距离选出最多 500 张候选，再用整图及单一显著区域的 NCC 平均值重排。
@@ -39,29 +43,36 @@
 
 NCC 按论文式（24）实现为两个中心化单位向量的内积；最终分数是 `0.5 × 整图NCC + 0.5 × 显著区域NCC`。任一输入方差为零时，对应 NCC 为 0；两个空图不会被特判为完美匹配。所有空区域特征为 0；常量 sinogram 的 Radon 特征为 0；不允许 NaN/Inf 进入缓存或排序。
 
-预筛按 `(欧氏距离升序, 样本ID升序)`；重排按 `(NCC分数降序, 欧氏距离升序, 样本ID升序)`。不参与预筛的候选不补排到结果末尾。公共评估对超出已返回排名的 P@K 位置按未命中处理。
+原方法入口预筛按 `(欧氏距离升序, 样本ID升序)`；重排按 `(NCC分数降序, 欧氏距离升序, 样本ID升序)`。
+统一入口将最终 ID 并列键改为哈希（碰撞再以 ID 兜底），保留欧氏距离次排序键。
+不参与预筛的候选不补排到结果末尾。评价对超出已返回排名的 P@K 位置按未命中处理，AP/Recall 分母始终取完整池。
 
 ## 冻结数据协议
 
-使用外层 `compared_methods/common.py` 和 `protocol/split.csv`。只有冻结的 train/valid 可用，没有 test CLI 或 test 分支。Wu 无拟合过程，默认只为显式 `valid_ids` 提取特征；不会为了凑出训练阶段读取 train 图像，也不为 Normal 类额外提取特征。验证查询和候选均由公共验证池生成；本方法不自行采样、不使用标签重排、不调用项目覆盖指标。
+使用公共 `shared/common.py` 和 `protocol/deduplicated/split.csv`。共享协议先对完整原图精确去重，每组保留最小原始 ID，再按组合类别分层划分；缺陷 train/valid/test 为 25,193/3,599/7,199。原始 NPZ 和历史 `protocol/split.csv` 不改动。运行时会核验唯一代表覆盖，原图哈希检查属于数据审计，不是方法特征计算。
 
-正式配置使用 500 个验证查询，每个查询 1000 个候选；指标 k 为 1、5、10、20、50、100、500。小样本配置每个缺陷类只取 2 个 valid 样本，使用 37 个查询、每查询 73 个候选；仍保留 n=500，因此实际全体 73 个候选进入重排。小样本配置中的 train/Normal 数量用于统一公共数据协议，Wu 无需计算这些图像特征。
+查询和候选从共享 `protocol/retrieval_v1/` 读取；本方法不自行采样、不使用标签重排、不调用项目覆盖指标。Wu 无拟合过程，默认只为显式 `valid_ids` 提取特征；原入口 `--stage test` 或统一入口 `--split test` 才提取冻结 test ID 的特征。不会为了凑出训练阶段计算 train 特征，也不为 Normal 类额外提取特征。
+
+正式 valid 使用按完整组合分层固定的 500 个查询，候选为完整 valid 集除自身，每个 3,598 张；每类最低 5 个查询，配额和实际 ID 已固定保存。正式 test 的 7,199 张全部轮流查询，每个候选为其余 7,198 张。指标 k 为 1、5、10、20、50、100、500。候选按 query 惰性展开，不在内存保存所有查询候选对。
+
+小样本配置每个缺陷类只取 2 个 valid 样本，query 为正式固定查询与这 74 张图的交集，每个 query 的候选是另外 73 张；仍保留 n=500，因此全体 73 张进入重排。该池只用于调试，不能作为正式结果，也不能运行 test。小样本配置中的 train/Normal 数量用于统一公共数据协议，Wu 无需计算这些图像特征。
 
 ## 命令
 
-先按[总说明](../README.md)安装独立依赖环境，再在外层工作区执行：
+先按[总说明](../../README.md)安装独立依赖环境，再在外层工作区执行：
 
 ```bash
-python compared_methods/wu/wu.py --config compared_methods/wu/config.json --stage audit
-python compared_methods/wu/wu.py --config compared_methods/wu/smoke.json --stage all --workers 1
-python compared_methods/wu/wu.py --config compared_methods/wu/config.json --stage prepare --workers 4
-python compared_methods/wu/wu.py --config compared_methods/wu/config.json --stage valid
+python compared_methods/methods/wu/wu.py --config compared_methods/methods/wu/config.json --stage audit
+python compared_methods/methods/wu/wu.py --config compared_methods/methods/wu/smoke.json --stage all --workers 1
+python compared_methods/methods/wu/wu.py --config compared_methods/methods/wu/config.json --stage prepare --workers 4
+python compared_methods/methods/wu/wu.py --config compared_methods/methods/wu/config.json --stage valid
+python compared_methods/methods/wu/wu.py --config compared_methods/methods/wu/config.json --stage test --workers 4
 ```
 
-`--stage audit` 仅审计协议；`prepare` 提取特征；`valid` 使用已有缓存检索和评价；`all` 依次执行。没有训练阶段。`--output-dir` 可覆盖输出位置，相对路径按 `compared_methods/` 解释；更换配置或代码后使用新的输出目录，避免混用旧缓存。
+`--stage audit` 仅审计协议；`prepare` 提取 valid 特征；`valid` 使用已有 valid 缓存检索和评价；`all` 依次执行上述流程，不自动访问 test。`test` 显式准备 test 特征并执行全量 test 检索，应在 valid 上确定参数后运行。没有训练阶段。`--output-dir` 可覆盖输出位置，相对路径按 `compared_methods/` 解释；更换配置或代码后使用新的输出目录，避免混用旧缓存。正式/smoke 默认输出为 `artifacts/wu_retrieval_v1`、`artifacts/wu_smoke_retrieval_v1`；旧协议指标不能与新协议指标直接混比。
 
-输出包括公共运行签名/环境记录、`audit.json`、`prepare.json`、`feature_ids.npy`、`features.npy`、`ncc_full.npy`、`ncc_region.npy`、`rankings.json`、`rankings.csv`、公共评价文件和 `valid_summary.json`。特征缓存使用 float32；距离用 float64 计算。NCC 向量缓存避免逐候选重复中心化。`--workers` 仅控制 CPU 特征提取进程数，不启用 GPU。
+valid 产物保存在运行输出根目录，test 产物单独保存在其 `test/` 下，包含特征/NCC 缓存、排名和评价记录。输出包括公共运行签名/环境记录、`audit.json`、`prepare.json`、`feature_ids.npy`、`features.npy`、`ncc_full.npy`、`ncc_region.npy`、`rankings.json`、`rankings.csv` 和公共评价文件。排名按 query 流式保存至最多 `max(ks)` 位；评价分母仍为该 query 在完整 gallery 中的相关样本数。默认粗筛只返回最多 500 张，不声称整个 gallery 均经过 NCC 精排。特征缓存使用 float32；距离用 float64 计算。NCC 向量缓存避免逐候选重复中心化。`--workers` 仅控制 CPU 特征提取进程数，不启用 GPU。
 
 可单独验证的纯数组函数包括 `wafer_masks`、`radon_features`、`regional_features`、`statistical_features`、`hough_line_count`、`extract_features`、`largest_region`、`ncc_vector`、`ncc_score` 和 `rank_candidates`。
 
-本地真实数据 smoke、单/双进程一致性检查已通过，范围与证据见[验证记录](../VALIDATION.md)。
+本地真实数据 smoke、单/双进程一致性检查的执行日期、所用协议及范围见[验证记录](../../docs/VALIDATION.md)；旧协议验证不代表新协议已经完成性能评估。

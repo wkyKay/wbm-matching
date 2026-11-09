@@ -4,11 +4,12 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from compared_methods.wu import wu
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from methods.wu import wu
 
 
 def circle_wafer():
@@ -148,12 +149,64 @@ class WuRankingTests(unittest.TestCase):
             # A matching cache is reused without touching the images again.
             wu.prepare(bundle, config, output, workers=1)
             self.assertEqual(guarded.accessed, [2, 3, 4, 5])
-            result = wu.validate(bundle, config, output)
+            pool = {q: [c for c in (2, 3, 4, 5) if c != q] for q in (2, 3, 4, 5)}
+            with patch("shared.common.make_retrieval_pool", return_value=pool):
+                result = wu.validate(bundle, config, output)
             self.assertEqual(result["queries"], 4)
             self.assertFalse(result["test_accessed"])
             self.assertAlmostEqual(result["metrics"]["metrics"]["Precision@1"], 1)
             self.assertEqual(guarded.accessed, [2, 3, 4, 5])
             self.assertTrue((output / "rankings.csv").exists())
+
+    def test_test_stage_features_and_streamed_rankings_use_only_test_ids(self):
+        arrays = np.stack([circle_wafer() for _ in range(9)])
+        arrays[4:6, 20:27, 20:27] = 2
+        arrays[6:8, 15, 10:42] = 2
+        guarded = GuardedMaps(arrays, [4, 5, 6, 7])
+        bundle = SimpleNamespace(maps=guarded, valid_ids=np.array([2, 3]),
+                                 reserved_ids=np.array([4, 5, 6, 7]),
+                                 class_ids=np.array([0, -1, 0, 1, 0, 0, 1, 1, -1]),
+                                 signature="synthetic-wu-test")
+        pool = {q: [c for c in (4, 5, 6, 7) if c != q] for q in (4, 5, 6, 7)}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "test"
+            config = {"method": "wu", "parameters": {}, "ks": [1, 2], "output_dir": str(root)}
+            record = wu.prepare(bundle, config, output, workers=1, split_name="test")
+            self.assertTrue(record["test_accessed"])
+            with patch("shared.common.make_retrieval_pool", return_value=pool) as loader:
+                result = wu.validate(bundle, config, output, split_name="test")
+            loader.assert_called_once_with(bundle, config, split_name="test")
+            self.assertEqual(guarded.accessed, [4, 5, 6, 7])
+            self.assertTrue(result["test_accessed"])
+            self.assertTrue(result["metrics"]["test_evaluated"])
+            self.assertAlmostEqual(result["metrics"]["metrics"]["Precision@1"], 1)
+            self.assertTrue((output / "test_summary.json").exists())
+            self.assertFalse((root / "feature_ids.npy").exists())
+            with (output / "rankings.json").open() as handle:
+                import json
+                ranks = json.load(handle)
+            self.assertEqual(set(map(int, ranks)), {4, 5, 6, 7})
+            self.assertTrue(all(len(values) == 2 and int(q) not in values for q, values in ranks.items()))
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                wu.validate(bundle, config, output, split_name="valid")
+
+    def test_all_does_not_evaluate_test_and_test_is_explicit(self):
+        bundle = SimpleNamespace()
+        with tempfile.TemporaryDirectory() as directory:
+            config = {"method": "wu", "parameters": {}, "output_dir": directory}
+            with patch("shared.common.load_config", return_value=config), patch("shared.common.ensure_run"), \
+                    patch("shared.common.make_retrieval_pool", return_value={}), \
+                    patch("shared.common.prepare_data", return_value=bundle), patch.object(wu, "audit", return_value={}), \
+                    patch.object(wu, "prepare", return_value={}) as prepare, \
+                    patch.object(wu, "validate", return_value={}) as evaluate:
+                wu.main(["--stage", "all"])
+                self.assertEqual(evaluate.call_count, 1)
+                self.assertNotIn("split_name", evaluate.call_args.kwargs)
+                prepare.reset_mock(); evaluate.reset_mock()
+                wu.main(["--stage", "test"])
+                self.assertEqual(prepare.call_args.kwargs["split_name"], "test")
+                self.assertEqual(evaluate.call_args.kwargs["split_name"], "test")
 
 
 if __name__ == "__main__":

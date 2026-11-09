@@ -1,15 +1,17 @@
 """Yu (2019): two CNNs, train-fitted PCA, ten-valued categorical retrieval.
 
 Paper-specified choices and explicit reproduction choices are documented in README.md.
-This module never reads test samples; the shared protocol owns split validation.
+Test retrieval is available only through the explicit test stage, after train/valid selection.
 """
 
 from __future__ import annotations
 
+import csv
 import json
 import math
 import os
 import random
+import sys
 import time
 from pathlib import Path
 
@@ -20,6 +22,10 @@ from scipy.ndimage import median_filter
 from sklearn.decomposition import PCA
 from torch import nn
 from torch.nn import functional as F
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 METHOD_VERSION = "yu2019-mixedwm38-v1"
@@ -193,7 +199,7 @@ def explicit_l2(model):
 
 def preprocess_audit(bundle, output_dir, run_signature):
     """Record filter effects on allowed train/valid records without adapting the filter."""
-    from common import read_json, save_json, save_csv
+    from shared.common import read_json, save_json, save_csv
 
     folder = Path(output_dir) / "preprocessing"
     marker = folder / "summary.json"
@@ -357,7 +363,7 @@ def predict(model, bundle, sample_ids, config, device, *, task, features=False):
 
 
 def train_network(task, bundle, config, output_dir, run_signature, device, *, resume=False, max_steps=None):
-    from common import save_json, seed_everything
+    from shared.common import save_json, seed_everything
 
     task_seed = int(config["seed"]) + (0 if task == "detector" else 10000)
     seed_everything(task_seed)
@@ -487,13 +493,15 @@ def _selected_model(task, output_dir, run_signature, device):
     return model, metadata
 
 
-def validate(bundle, config, output_dir, run_signature, device):
-    from common import make_valid_pool, evaluate_rankings, save_json, save_csv, hash_file, signature
+def validate(bundle, config, output_dir, run_signature, device, split_name="valid"):
+    from shared.common import make_retrieval_pool, evaluate_rankings, save_json, hash_file, signature
 
-    folder = Path(output_dir) / "valid"
+    if split_name not in ("valid", "test"):
+        raise ValueError("Retrieval split must be valid or test")
+    folder = Path(output_dir) / split_name
     folder.mkdir(parents=True, exist_ok=True)
-    pool = make_valid_pool(bundle, config)
-    pool = {int(q): [int(c) for c in cs] for q, cs in pool.items()}
+    pool = make_retrieval_pool(bundle, config, split_name=split_name)
+    target_ids = bundle.valid_ids if split_name == "valid" else bundle.reserved_ids
     model, classifier_provenance = _selected_model("classifier", output_dir, run_signature, device)
     encoder_signature = signature({"run": run_signature, "classifier": hash_file(Path(output_dir) / "classifier/best.pt")})
     encoder_path, encoder = Path(output_dir) / "encoder.npz", None
@@ -503,83 +511,103 @@ def validate(bundle, config, output_dir, run_signature, device):
             if np.array_equal(cached.fit_ids, np.asarray(bundle.train_ids)):
                 encoder = cached
         except ValueError:
-            pass  # A newer selected classifier requires refitting on train, never valid.
+            pass  # A newer selected classifier requires refitting only on train.
     encoder_reused = encoder is not None
     if encoder is None:
         train = predict(model, bundle, bundle.train_ids, config, device, task="classifier", features=True)
         encoder = TenValueEncoder(seed=int(config["seed"])).fit(train["features"], train["ids"])
         encoder.save(encoder_path, encoder_signature)
         del train
-    valid = predict(model, bundle, bundle.valid_ids, config, device, task="classifier", features=True)
-    codes = encoder.transform(valid["features"])
-    indices = {int(sample_id): i for i, sample_id in enumerate(valid["ids"])}
-    predicted_class = {int(sample_id): int(p) for sample_id, p in zip(valid["ids"], valid["predictions"])}
+    evaluated = predict(model, bundle, target_ids, config, device, task="classifier", features=True)
+    codes = encoder.transform(evaluated["features"])
+    indices = {int(sample_id): i for i, sample_id in enumerate(evaluated["ids"])}
+    predicted_class = {int(sample_id): int(p) for sample_id, p in zip(evaluated["ids"], evaluated["predictions"])}
     del model
     if device.type == "cuda":
         torch.cuda.empty_cache()
     detector, detector_provenance = _selected_model("detector", output_dir, run_signature, device)
-    detected = predict(detector, bundle, _task_ids(bundle, "detector", "valid"), config, device, task="detector")
+    # Test retrieval covers defect maps. The separate Normal holdout is not used.
+    detector_ids = _task_ids(bundle, "detector", "valid") if split_name == "valid" else target_ids
+    detected = predict(detector, bundle, detector_ids, config, device, task="detector")
     predicted_defect = {int(sample_id): bool(p) for sample_id, p in zip(detected["ids"], detected["predictions"])}
     del detector
-    rankings, gated, gate_counts = {}, {}, []
-    global_rows, gated_rows = [], []
-    for query_id, candidate_ids in pool.items():
-        if query_id not in indices or any(c not in indices for c in candidate_ids):
-            raise ValueError("Validation retrieval must use only explicit defect valid IDs")
-        if query_id in candidate_ids or len(set(candidate_ids)) != len(candidate_ids):
-            raise ValueError("Candidate pool contains self or duplicate records")
-        distances = categorical_hamming(codes[indices[query_id]], codes[[indices[c] for c in candidate_ids]])
-        ordered = np.asarray(candidate_ids, dtype=np.int64)[np.lexsort((candidate_ids, distances))].tolist()
-        rankings[query_id] = ordered
-        # Both sides use predictions, never valid truth labels, for class gating.
-        gated[query_id] = ([c for c in ordered if predicted_defect[c]
-                            and predicted_class[c] == predicted_class[query_id]]
-                           if predicted_defect[query_id] else [])
-        distance_by_id = dict(zip(candidate_ids, distances.tolist()))
-        for target_rows, ranking in ((global_rows, ordered), (gated_rows, gated[query_id])):
-            for rank, candidate_id in enumerate(ranking, 1):
-                target_rows.append({"query_id": query_id, "rank": rank, "candidate_id": candidate_id,
-                                    "categorical_hamming": int(distance_by_id[candidate_id]),
-                                    "query_predicted_class": predicted_class[query_id],
-                                    "candidate_predicted_class": predicted_class[candidate_id]})
-        gate_counts.append({"query_id": query_id, "input_candidates": len(ordered),
-                            "remaining_candidates": len(gated[query_id]),
-                            "detector_rejected_query": not predicted_defect[query_id]})
-    results = {
-        "global": evaluate_rankings(bundle, pool, rankings, config["ks"], folder / "global"),
-        "predicted_class": evaluate_rankings(bundle, pool, gated, config["ks"], folder / "predicted_class")}
+    maximum = max(config["ks"])
+    gate_counts = []
     fields = ["query_id", "rank", "candidate_id", "categorical_hamming", "query_predicted_class",
               "candidate_predicted_class"]
-    save_csv(folder / "global/rankings.csv", global_rows, fields)
-    save_csv(folder / "predicted_class/rankings.csv", gated_rows, fields)
-    save_json(folder / "classification.json", {"classifier": valid["metrics"], "detector": detected["metrics"]})
+    results = {}
+    # Each pass keeps only one query's scores/ranking in memory. The two variants
+    # reuse the extracted codes; neither materializes the complete N x N pool.
+    for variant in ("global", "predicted_class"):
+        destination = folder / variant
+        destination.mkdir(parents=True, exist_ok=True)
+        path = destination / "rankings.csv"
+        temporary = path.with_suffix(".csv.tmp")
+        with temporary.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields)
+            writer.writeheader()
+
+            def rankings():
+                for query_id, candidate_ids in pool.items():
+                    query_id = int(query_id)
+                    candidate_ids = np.asarray(candidate_ids, dtype=np.int64)
+                    if query_id not in indices or any(int(c) not in indices for c in candidate_ids):
+                        raise ValueError(f"Retrieval must use only explicit defect {split_name} IDs")
+                    if query_id in candidate_ids or len(np.unique(candidate_ids)) != len(candidate_ids):
+                        raise ValueError("Candidate pool contains self or duplicate records")
+                    distances = categorical_hamming(codes[indices[query_id]], codes[[indices[int(c)] for c in candidate_ids]])
+                    order = np.lexsort((candidate_ids, distances))
+                    if variant == "predicted_class":
+                        # Gate by predictions, never by the evaluation labels.
+                        if predicted_defect[query_id]:
+                            order = np.asarray([i for i in order if predicted_defect[int(candidate_ids[i])]
+                                                and predicted_class[int(candidate_ids[i])] == predicted_class[query_id]],
+                                               dtype=np.int64)
+                        else:
+                            order = np.empty(0, dtype=np.int64)
+                        gate_counts.append({"query_id": query_id, "input_candidates": len(candidate_ids),
+                                            "remaining_candidates": len(order),
+                                            "detector_rejected_query": not predicted_defect[query_id]})
+                    order = order[:maximum]
+                    ranked = candidate_ids[order]
+                    writer.writerows({"query_id": query_id, "rank": rank, "candidate_id": int(candidate_ids[i]),
+                                      "categorical_hamming": int(distances[i]),
+                                      "query_predicted_class": predicted_class[query_id],
+                                      "candidate_predicted_class": predicted_class[int(candidate_ids[i])]}
+                                     for rank, i in enumerate(order, start=1))
+                    yield query_id, ranked
+
+            results[variant] = evaluate_rankings(bundle, pool, rankings(), config["ks"], destination,
+                                                split_name=split_name)
+        temporary.replace(path)
+    save_json(folder / "classification.json", {"classifier": evaluated["metrics"], "detector": detected["metrics"],
+                                               "detector_scope": "defect and Normal valid" if split_name == "valid"
+                                               else "defect test only; Normal holdout not evaluated"})
     save_json(folder / "gate_counts.json", gate_counts)
-    save_json(folder / "provenance.json", {"signature": run_signature, "classifier": classifier_provenance,
+    save_json(folder / "provenance.json", {"signature": run_signature, "split": split_name,
+              "classifier": classifier_provenance,
               "detector": detector_provenance, "pca_fit_split": "train", "pca_rows": len(bundle.train_ids),
               "pca_dimensions": 256, "pca_whiten": False, "pca_cache_reused": encoder_reused,
               "scaling": "train per-dimension min-max; clip [0,1]",
               "distance": "categorical Hamming count", "tie_break": "sample_id ascending",
               "main_result": "global (no detection/classification gate)",
               "auxiliary": "predicted-class cascade; both query and candidates gated by model predictions",
-              "labels_used_for_ranking": False, "normal_holdout_used": False, "test_used": False})
+              "ranking_storage": "top max(ks), streamed; metric denominators use the full gallery",
+              "stored_ranking_limit": maximum,
+              "labels_used_for_ranking": False, "normal_holdout_used": False, "test_used": split_name == "test"})
     save_json(folder / "summary.json", results)
-    np.savez_compressed(folder / "features_codes.npz", ids=valid["ids"], codes=codes,
-                        predicted_classes=valid["predictions"])
+    np.savez_compressed(folder / "features_codes.npz", ids=evaluated["ids"], codes=codes,
+                        predicted_classes=evaluated["predictions"])
     return results
 
 
 def main(argv=None):
     import argparse
-    import sys
+    from shared.common import load_config, ensure_run, prepare_data, save_json, get_device, signature, seed_everything
 
-    root = Path(__file__).resolve().parents[1]
-    if str(root) not in sys.path:
-        sys.path.insert(0, str(root))
-    from common import load_config, ensure_run, prepare_data, save_json, get_device, signature, seed_everything
-
-    parser = argparse.ArgumentParser(description="Yu 2019 MixedWM38; train/valid only")
+    parser = argparse.ArgumentParser(description="Yu 2019 MixedWM38; train/valid and explicit test retrieval")
     parser.add_argument("--config", default=str(Path(__file__).with_name("config.json")))
-    parser.add_argument("--stage", choices=["audit", "prepare", "train", "valid", "all"], default="all")
+    parser.add_argument("--stage", choices=["audit", "prepare", "train", "valid", "test", "all"], default="all")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--device", default=None)
     parser.add_argument("--output-dir", default=None)
@@ -600,15 +628,18 @@ def main(argv=None):
         torch.set_num_threads(int(config["torch_threads"]))
     base_signature = ensure_run(config, [Path(__file__)])
     bundle = prepare_data(config)
+    if args.stage == "test" and config.get("smoke", False):
+        raise ValueError("Test requires the full frozen protocol; smoke configurations cannot run test")
     run_signature = signature({"run": base_signature, "data": bundle.signature, "method": METHOD_VERSION})
     output_dir = Path(config["output_dir"])
     if not output_dir.is_absolute():
-        output_dir = root / output_dir
+        output_dir = ROOT / output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
     save_json(output_dir / "yu_protocol.json", {"signature": run_signature, "bundle": bundle.summary(),
                "method": METHOD_VERSION, "train_labels": "all 37 complete combination classes",
                "normal": "only separate detector train/valid; holdout remains unused"})
-    preprocess_audit(bundle, output_dir, run_signature)
+    if args.stage != "test":
+        preprocess_audit(bundle, output_dir, run_signature)
     if args.stage in ("audit", "prepare"):
         print(json.dumps(bundle.summary(), ensure_ascii=False, indent=2))
         return
@@ -622,6 +653,8 @@ def main(argv=None):
                           resume=args.resume, max_steps=ceiling)
     if args.stage in ("valid", "all"):
         validate(bundle, config, output_dir, run_signature, device)
+    if args.stage == "test":
+        validate(bundle, config, output_dir, run_signature, device, split_name="test")
 
 
 if __name__ == "__main__":

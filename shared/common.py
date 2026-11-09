@@ -1,8 +1,7 @@
 """Shared data/provenance utilities; algorithms live in wu/ and yu/.
 
-The frozen test rows are used only to check split integrity. No test feature,
-prediction or evaluation stage exists here. All image-processing callers must
-use the explicit train/valid ID arrays in DataBundle.
+Training and model selection use explicit train/valid IDs. Test retrieval is
+available only through an explicit test stage, using a shared frozen protocol.
 """
 from __future__ import annotations
 
@@ -14,13 +13,19 @@ import platform
 import random
 import sys
 from contextlib import contextmanager
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parent
+from .data_protocol import deduplicate_maps
+from .retrieval_protocol import FullGalleryPool, load_retrieval_protocol, protocol_file_hashes
+
+ROOT = Path(__file__).resolve().parents[1]
+PROTOCOL_SOURCE = Path(__file__).resolve().with_name("data_protocol.py")
+RETRIEVAL_SOURCE = Path(__file__).resolve().with_name("retrieval_protocol.py")
 _HASH_CACHE = {}
 
 
@@ -77,7 +82,8 @@ def signature(value):
     return hashlib.sha256(encoded).hexdigest()
 
 
-def load_config(path, overrides=None):
+def load_config(path, overrides=None, *, require_ks=True):
+    """Load settings; feature-only methods need not configure retrieval metrics."""
     path = Path(path).expanduser()
     if not path.is_absolute():
         path = (Path.cwd() / path).resolve()
@@ -89,17 +95,22 @@ def load_config(path, overrides=None):
     config.setdefault("expected_classes", 37)
     config.setdefault("normal_split", {"train": 700, "valid": 100, "holdout": 200})
     config.setdefault("subset", {})
-    for key in ("data_file", "split_file", "output_dir", "cache_dir"):
+    for key in ("data_file", "split_file", "retrieval_protocol_dir", "output_dir", "cache_dir"):
         if key not in config:
             continue
         value = Path(config[key]).expanduser()
         config[key] = str(value.resolve() if value.is_absolute() else (ROOT / value).resolve())
-    if config.get("method") not in ("wu", "yu"):
-        raise ValueError("method must be wu or yu")
+    if not isinstance(config.get("method"), str) or not config["method"].strip():
+        raise ValueError("method must be a nonempty method name")
+    if "valid_pool" in config or "retrieval_protocol_dir" not in config:
+        raise ValueError("Configure retrieval_protocol_dir; runtime valid_pool sampling is no longer supported")
     if not isinstance(config["seed"], int) or config["seed"] < 0:
         raise ValueError("seed must be a nonnegative integer")
-    if not config.get("ks") or any(not isinstance(k, int) or k < 1 for k in config["ks"]):
-        raise ValueError("ks must contain positive integers")
+    if require_ks or "ks" in config:
+        ks = config.get("ks")
+        if (not isinstance(ks, list) or not ks or
+                any(type(k) is not int or k < 1 for k in ks)):
+            raise ValueError("ks must contain positive integers")
     return config
 
 
@@ -131,17 +142,25 @@ def environment_info():
 def ensure_run(config, method_files):
     """Reject mixing different scientific settings, inputs or source code."""
     output = Path(config["output_dir"]).resolve()
-    files = [Path(__file__).resolve()] + [Path(p).resolve() for p in method_files]
-    protected = [ROOT, Path(config["data_file"]), Path(config["split_file"])] + files
+    files = [Path(__file__).resolve(), PROTOCOL_SOURCE, RETRIEVAL_SOURCE] + [Path(p).resolve() for p in method_files]
+    protocol_dir = Path(config["retrieval_protocol_dir"]).resolve()
+    protected = [ROOT, Path(config["data_file"]), Path(config["split_file"]), protocol_dir] + files
     if any(output == p or output in p.parents for p in protected):
         raise ValueError("Output directory would contain code or source inputs")
+    if protocol_dir in output.parents:
+        raise ValueError("Output directory must not be inside the frozen retrieval protocol")
     ignored = {"output_dir", "device", "workers", "num_workers", "cpu_threads", "torch_threads",
-               "data_file", "split_file", "cache_dir", "resume"}
+               "data_file", "split_file", "retrieval_protocol_dir", "cache_dir", "resume"}
     settings = {k: v for k, v in config.items() if k not in ignored}
     sources = {key: hash_file(config[key]) for key in ("data_file", "split_file")}
+    sources["retrieval_protocol"] = protocol_file_hashes(protocol_dir)
+    frozen_metadata = read_json(protocol_dir / "metadata.json")
+    if (frozen_metadata.get("source_sha256") != sources["data_file"] or
+            frozen_metadata.get("split_sha256") != sources["split_file"]):
+        raise ValueError("Frozen retrieval protocol belongs to different source data/split")
     code = {str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else p.name: hash_file(p)
             for p in files}
-    payload = {"format_version": 1, "settings": settings, "sources": sources, "code": code}
+    payload = {"format_version": 3, "settings": settings, "sources": sources, "code": code}
     run_signature = signature(payload)
     output.mkdir(parents=True, exist_ok=True)
     marker = output / "run_manifest.json"
@@ -211,6 +230,9 @@ class DataBundle:
     class_signatures: list
     signature: str
     full_counts: dict
+    deduplication: dict
+    full_valid_ids: np.ndarray
+    retrieval_protocol: object = None
 
     def summary(self):
         return {"source_shape": list(self.maps.shape), "num_defect_classes": len(self.class_signatures),
@@ -218,6 +240,9 @@ class DataBundle:
                 "used_normal_train": len(self.normal_train_ids), "used_normal_valid": len(self.normal_valid_ids),
                 "reserved_defect_count": len(self.reserved_ids),
                 "reserved_normal_count": len(self.normal_reserved_ids), "full_counts": self.full_counts,
+                "deduplication": self.deduplication,
+                "retrieval_protocol_signature": (self.retrieval_protocol.signature
+                                                  if self.retrieval_protocol else None),
                 "test_processed": False, "signature": self.signature,
                 "pixel_policy": "defect=2; valid die=1 or 2; code 3 ignored (same as source project)"}
 
@@ -240,6 +265,11 @@ def _subset(ids, count, seed, class_ids=None):
 
 def prepare_data(config):
     maps, labels = _raw_arrays(config)
+    # Audit raw pixels globally, before any class or split filtering. This checks
+    # held-out source identity only; no test features or predictions are computed.
+    deduplication = deduplicate_maps(maps, labels)
+    representatives = deduplication.representative_ids
+    unique_nonempty = representatives[np.asarray(labels[representatives]).sum(axis=1) > 0]
     with Path(config["split_file"]).open(newline="", encoding="utf-8-sig") as handle:
         rows = list(csv.DictReader(handle))
     ids = {key: [] for key in ("train", "valid", "test")}
@@ -251,15 +281,22 @@ def prepare_data(config):
             raise ValueError("Duplicate/out-of-range sample ID or unknown split")
         if sample_id != int(row["original_index"]):
             raise ValueError("sample_id must be the original NPZ row index")
+        if deduplication.representative_of[sample_id] != sample_id:
+            raise ValueError(
+                f"Split contains duplicate sample {sample_id}; canonical representative is "
+                f"{deduplication.representative_of[sample_id]}. Use a new deduplicated protocol "
+                "from scripts/build_protocol.py; the legacy split is preserved, not filtered silently.")
         expected = np.array([int(row[f"label_{i}"]) for i in range(8)], dtype=np.uint8)
         if not expected.any() or not np.array_equal(expected, labels[sample_id]):
             raise ValueError(f"Source/manifest label mismatch at {sample_id}")
-        if "valid_index" in row and nonempty[int(row["valid_index"])] != sample_id:
-            raise ValueError("Frozen valid_index mismatch")
+        if "valid_index" in row:
+            valid_index = int(row["valid_index"])
+            if not 0 <= valid_index < len(nonempty) or nonempty[valid_index] != sample_id:
+                raise ValueError("Frozen valid_index mismatch")
         seen.add(sample_id)
         ids[row["split"]].append(sample_id)
-    if seen != set(nonempty.tolist()) or any(not values for values in ids.values()):
-        raise ValueError("Frozen split must partition all nonempty-label wafers")
+    if seen != set(unique_nonempty.tolist()) or any(not values for values in ids.values()):
+        raise ValueError("Deduplicated split must partition all canonical nonempty-label wafers exactly once")
     signatures = sorted({tuple(int(v) for v in labels[i]) for i in ids["train"]})
     if len(signatures) != config.get("expected_classes", 37):
         raise ValueError("Unexpected train combination-class count")
@@ -270,13 +307,13 @@ def prepare_data(config):
         if key not in mapping:
             raise ValueError("A non-train combination is absent from the train taxonomy")
         class_ids[i] = mapping[key]
-    normal_ids = np.flatnonzero(np.asarray(labels).sum(axis=1) == 0)
+    normal_ids = representatives[np.asarray(labels[representatives]).sum(axis=1) == 0]
     normal_settings = config.get("normal_split", {"train": 700, "valid": 100, "holdout": 200})
     if set(normal_settings) != {"train", "valid", "holdout"} or any(
             not isinstance(v, int) or v < 0 for v in normal_settings.values()):
         raise ValueError("normal_split must contain nonnegative train/valid/holdout counts")
     if sum(normal_settings.values()) != len(normal_ids):
-        raise ValueError("Normal split counts must partition every empty-label source sample")
+        raise ValueError("Normal split counts must partition the deduplicated empty-label samples")
     shuffled = np.random.default_rng(config["seed"]).permutation(normal_ids)
     nt, nv = normal_settings["train"], normal_settings["valid"]
     normal = {"train": np.sort(shuffled[:nt]), "valid": np.sort(shuffled[nt:nt + nv]),
@@ -287,17 +324,40 @@ def prepare_data(config):
               for offset, split in enumerate(("train", "valid"))}
     chosen_normal = {split: _subset(normal[split], subset.get(f"normal_{split}"), config["seed"] + 2 + offset)
                      for offset, split in enumerate(("train", "valid"))}
+    full_valid = np.asarray(sorted(ids["valid"]), dtype=np.int64)
+    full_test = np.asarray(sorted(ids["test"]), dtype=np.int64)
+    frozen = None
+    if "retrieval_protocol_dir" in config:
+        frozen = load_retrieval_protocol(
+            config["retrieval_protocol_dir"], data_file=config["data_file"], split_file=config["split_file"],
+            valid_ids=full_valid, test_ids=full_test, labels=labels)
     specification = {"source": hash_file(config["data_file"]), "split": hash_file(config["split_file"]),
+                     "protocol_code": hash_file(PROTOCOL_SOURCE),
+                     "retrieval_protocol": frozen.signature if frozen else None,
+                     "deduplication": deduplication.summary(),
                      "seed": config["seed"], "subset": subset, "normal_split": normal_settings,
                      "class_signatures": signatures, "train_ids": chosen["train"], "valid_ids": chosen["valid"],
                      "normal_train_ids": chosen_normal["train"], "normal_valid_ids": chosen_normal["valid"]}
     bundle = DataBundle(maps, labels, class_ids, chosen["train"], chosen["valid"],
                         chosen_normal["train"], chosen_normal["valid"],
-                        np.asarray(sorted(ids["test"]), dtype=np.int64), normal["holdout"],
+                        full_test, normal["holdout"],
                         [list(s) for s in signatures], signature(specification),
-                        {**{s: len(v) for s, v in ids.items()}, "normal": len(normal_ids)})
+                        {**{s: len(v) for s, v in ids.items()}, "normal": len(normal_ids)},
+                        deduplication.summary(), full_valid, frozen)
     output = Path(config["output_dir"]) / "protocol"
+    previous = output / "data_summary.json"
+    if previous.exists() and read_json(previous).get("signature") != bundle.signature:
+        raise ValueError("Data protocol changed: choose a new output_dir; old protocol records are preserved")
     save_json(output / "data_summary.json", bundle.summary())
+    save_json(output / "deduplication.json", {**deduplication.summary(),
+              "source_sha256": hash_file(config["data_file"]),
+              "split_sha256": hash_file(config["split_file"]),
+              "representative_rule": "smallest original NPZ row ID; all raw pixel values compared",
+              "audit_only_heldout_pixels": True})
+    save_csv(output / "removed_duplicates.csv",
+             ({"removed_id": int(i), "representative_id": int(group[0])}
+              for group in deduplication.duplicate_groups for i in group[1:]),
+             ["removed_id", "representative_id"])
     save_json(output / "class_mapping.json", {"derived_from": "train only", "normal_id": -1,
                                                "classes": bundle.class_signatures})
     save_csv(output / "normal_split.csv", ({"sample_id": int(i), "split": split}
@@ -307,41 +367,87 @@ def prepare_data(config):
     return bundle
 
 
-def make_valid_pool(bundle, config):
-    settings = config["valid_pool"]
-    ids = np.asarray(sorted(bundle.valid_ids), dtype=np.int64)
-    nq, nc = int(settings["queries"]), int(settings["candidates"])
-    if not 0 < nq <= len(ids) or not 0 < nc < len(ids):
-        raise ValueError("Requested valid pool exceeds available IDs; set an explicit smaller smoke pool")
-    rng = np.random.default_rng(settings.get("seed", config["seed"]))
-    queries = sorted(rng.choice(ids, nq, replace=False).tolist())
-    pool = {q: sorted(rng.choice(ids[ids != q], nc, replace=False).tolist()) for q in queries}
-    path = Path(config["output_dir"]) / "protocol" / "valid_pool.json"
-    document = {"settings": settings, "queries": queries, "candidates": {str(k): v for k, v in pool.items()}}
-    if path.exists() and read_json(path) != document:
-        raise ValueError("Stored valid pool does not match deterministic protocol")
+def make_retrieval_pool(bundle, config, split_name="valid"):
+    """Read shared frozen queries/gallery; never draw a new evaluation pool.
+
+    Smoke validation uses the intersection with its explicit small valid subset.
+    It is a debug-only derivative of the frozen lists, not a benchmark result.
+    """
+    if split_name not in ("valid", "test"):
+        raise ValueError("Retrieval split must be valid or test")
+    if "valid_pool" in config:
+        raise ValueError("Runtime valid_pool sampling is no longer supported")
+    if not config.get("retrieval_protocol_dir"):
+        raise ValueError("Set retrieval_protocol_dir to a generated, frozen protocol")
+    frozen = bundle.retrieval_protocol
+    if frozen is None:
+        raise ValueError("Prepare data with retrieval_protocol_dir before retrieval")
+    # Prevent changing a protocol after data preparation or substituting a path.
+    if signature(protocol_file_hashes(config["retrieval_protocol_dir"])) != frozen.signature:
+        raise ValueError("Retrieval protocol changed after data preparation")
+    pool = getattr(frozen, split_name)
+    smoke = bool(config.get("smoke", False))
+    subset = any(value is not None for value in config.get("subset", {}).values())
+    if split_name == "test" and (smoke or subset):
+        raise ValueError("Test evaluation requires a full formal configuration, not a smoke/subset run")
+    if split_name == "valid" and smoke:
+        gallery = np.asarray(sorted(bundle.valid_ids), dtype=np.int64)
+        queries = np.intersect1d(pool.queries, gallery)
+        if not len(queries):
+            raise ValueError("Smoke valid subset contains no frozen queries; use a larger smoke subset")
+        pool = FullGalleryPool(queries, gallery, "valid", frozen.signature)
+    elif split_name == "valid" and not np.array_equal(bundle.valid_ids, pool.gallery):
+        raise ValueError("Formal validation requires the complete frozen valid gallery; use smoke only for debugging")
+    path = Path(config["output_dir"]) / "protocol" / f"{split_name}_pool.json"
+    document = {"format_version": 2, "split": split_name,
+                "protocol_signature": frozen.signature,
+                "derived_smoke": smoke,
+                "queries": pool.queries, "gallery": pool.gallery,
+                "candidate_rule": "all_gallery_except_query", "candidates_per_query": pool.candidates_per_query}
+    if path.exists() and signature(read_json(path)) != signature(document):
+        raise ValueError("Stored retrieval pool differs from the frozen protocol; use a new output_dir")
     save_json(path, document)
     return pool
 
 
-def evaluate_rankings(bundle, pool, rankings, ks, output_dir):
+def make_valid_pool(bundle, config):
+    """Compatibility wrapper for methods using the shared validation protocol."""
+    return make_retrieval_pool(bundle, config, "valid")
+
+
+def evaluate_rankings(bundle, pool, rankings, ks, output_dir, split_name="valid"):
     """Exact-combination relevance; omitted/routed-out candidates are misses.
 
     AP@K uses ALL relevant candidates in the specified pool as its denominator,
     not the number retrieved in Top-K. Queries with R=0 are counted and excluded
     from mean AP/recall; precision still includes them. No coverage metric.
     """
-    if set(rankings) != set(pool):
-        raise ValueError("Rankings must contain exactly the query IDs in the frozen pool")
-    allowed = set(int(i) for i in bundle.valid_ids)
+    if split_name not in ("valid", "test"):
+        raise ValueError("Retrieval split must be valid or test")
+    if hasattr(pool, "split_name") and pool.split_name != split_name:
+        raise ValueError("Retrieval pool split does not match the requested evaluation")
+    allowed_ids = bundle.valid_ids if split_name == "valid" else bundle.reserved_ids
+    allowed = set(int(i) for i in allowed_ids)
+    if not ks or any(not isinstance(k, int) or isinstance(k, bool) or k < 1 for k in ks):
+        raise ValueError("ks must contain positive integer cutoffs")
+    query_ids = set(pool)
+    if not query_ids:
+        raise ValueError("Retrieval pool must contain at least one query")
+    items = rankings.items() if isinstance(rankings, Mapping) else iter(rankings)
     rows = []
-    for q, candidates in pool.items():
-        if q not in allowed or not set(candidates) <= allowed or q in candidates:
-            raise ValueError("Validation evaluation accepts only held-out valid IDs, excluding self")
-        if not candidates or len(candidates) != len(set(candidates)):
+    seen = set()
+    for q, ranking in items:
+        if q not in query_ids or q in seen:
+            raise ValueError("Rankings must contain exactly one result per frozen query")
+        seen.add(q)
+        candidates = pool[q]
+        candidate_set = set(candidates)
+        if q not in allowed or not candidate_set <= allowed or q in candidate_set:
+            raise ValueError(f"{split_name} evaluation accepts only its held-out IDs, excluding self")
+        if len(candidates) == 0 or len(candidates) != len(candidate_set):
             raise ValueError("Candidate pool must be nonempty and contain unique IDs")
-        ranking = [int(i) for i in rankings[q]]
-        if len(ranking) != len(set(ranking)) or not set(ranking) <= set(candidates) or q in ranking:
+        ranking = [int(i) for i in ranking]
+        if len(ranking) != len(set(ranking)) or not set(ranking) <= candidate_set or q in ranking:
             raise ValueError("Ranking contains duplicate, unknown or self candidate")
         if bundle.class_ids[q] < 0 or any(bundle.class_ids[c] < 0 for c in candidates):
             raise ValueError("This retrieval protocol is for the 37 nonempty combination classes")
@@ -359,6 +465,8 @@ def evaluate_rankings(bundle, pool, rankings, ks, output_dir):
             row[f"Recall@{k}"] = hits / total if total else None
             row[f"AP@{k}"] = float(np.sum(precisions[:k] * relevant[:k]) / total) if total else None
         rows.append(row)
+    if seen != query_ids:
+        raise ValueError("Rankings must contain exactly the query IDs in the frozen pool")
     metrics = {}
     for k in ks:
         for prefix in ("Precision", "Recall", "AP"):
@@ -368,7 +476,9 @@ def evaluate_rankings(bundle, pool, rankings, ks, output_dir):
     result = {"num_queries": len(rows), "queries_without_relevant_candidates": sum(r["relevant_in_pool"] == 0 for r in rows),
               "metrics": metrics, "relevance": "exact equality of the entire nonempty defect-label combination",
               "ap_denominator": "all relevant candidates in the fixed pool (including screened/routed-out candidates)",
-              "zero_relevant_policy": "exclude from mAP/Recall; include in Precision", "test_evaluated": False}
+              "zero_relevant_policy": "exclude from mAP/Recall; include in Precision",
+              "split": split_name, "test_evaluated": split_name == "test",
+              "retrieval_protocol_signature": getattr(pool, "protocol_signature", None)}
     output_dir = Path(output_dir)
     save_json(output_dir / "metrics.json", result)
     save_csv(output_dir / "per_query.csv", rows, list(rows[0]))

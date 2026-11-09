@@ -1,2 +1,5 @@
 # Preserve the frozen split byte-for-byte, including its original CRLF endings.
 protocol/split.csv -text whitespace=cr-at-eol
+# Keep the new protocol hashes stable across platforms as well.
+protocol/deduplicated/*.csv -text whitespace=cr-at-eol
+protocol/retrieval_v1/*.csv -text whitespace=cr-at-eol

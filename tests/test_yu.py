@@ -1,6 +1,8 @@
 """Yu network, preprocessing, train-only encoder and exact resume regression checks."""
 
 from pathlib import Path
+import csv
+import json
 import sys
 import tempfile
 from types import SimpleNamespace
@@ -12,9 +14,8 @@ import torch
 from torch import nn
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT.parent))
 sys.path.insert(0, str(ROOT))
-from compared_methods.yu import yu
+from methods.yu import yu
 
 torch.set_num_threads(4)
 
@@ -194,6 +195,98 @@ class YuResumeTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 yu.train_network("detector", bundle, config, resumed, "wrong-signature", torch.device("cpu"),
                                  resume=True, max_steps=8)
+
+
+class YuRetrievalTests(unittest.TestCase):
+    def test_test_retrieval_fits_pca_on_train_and_only_evaluates_test(self):
+        bundle = SimpleNamespace(train_ids=np.array([0, 1, 2]), valid_ids=np.array([3, 4]),
+                                 reserved_ids=np.array([6, 7, 8, 9]),
+                                 normal_train_ids=np.array([5]), normal_valid_ids=np.array([10]),
+                                 normal_reserved_ids=np.array([11]),
+                                 class_ids=np.array([0, 1, 0, 0, 1, -1, 0, 0, 1, 1, -1, -1]))
+        pool = {q: np.array([c for c in (6, 7, 8, 9) if c != q]) for q in (6, 7, 8, 9)}
+        fit_calls, prediction_calls = [], []
+
+        class FakeEncoder:
+            def __init__(self, seed=0):
+                pass
+
+            def fit(self, features, ids):
+                fit_calls.append(ids.copy())
+                self.fit_ids = ids.copy()
+                return self
+
+            def save(self, path, signature):
+                pass
+
+            def transform(self, features):
+                return np.tile(features[:, :1].astype(np.uint8), (1, 256))
+
+        def predict(model, data, ids, config, device, *, task, features=False):
+            ids = np.asarray(ids)
+            prediction_calls.append((task, ids.copy(), features))
+            allowed = bundle.train_ids if features and np.array_equal(ids, bundle.train_ids) else bundle.reserved_ids
+            np.testing.assert_array_equal(ids, allowed)
+            feature_values = np.zeros((len(ids), 1024))
+            feature_values[:, 0] = bundle.class_ids[ids]
+            return {"ids": ids, "features": feature_values,
+                    "predictions": bundle.class_ids[ids] if task == "classifier" else np.ones(len(ids), dtype=int),
+                    "metrics": {"accuracy": 1.0}}
+
+        with tempfile.TemporaryDirectory() as directory:
+            config = {"seed": 2026, "ks": [1, 2], "output_dir": directory}
+            with patch("shared.common.make_retrieval_pool", return_value=pool), \
+                    patch("shared.common.hash_file", return_value="classifier-best"), \
+                    patch.object(yu, "_selected_model", return_value=(object(), {"selected": "best valid"})), \
+                    patch.object(yu, "TenValueEncoder", FakeEncoder), patch.object(yu, "predict", side_effect=predict), \
+                    patch.object(yu, "train_network") as train:
+                result = yu.validate(bundle, config, directory, "frozen-run", torch.device("cpu"), split_name="test")
+            train.assert_not_called()
+            self.assertEqual(len(fit_calls), 1)
+            np.testing.assert_array_equal(fit_calls[0], bundle.train_ids)
+            self.assertEqual(len(prediction_calls), 3)
+            self.assertTrue(result["global"]["test_evaluated"])
+            self.assertEqual(result["global"]["metrics"]["Precision@1"], 1.)
+            self.assertFalse((Path(directory) / "valid").exists())
+            folder = Path(directory) / "test"
+            provenance = json.loads((folder / "provenance.json").read_text())
+            self.assertTrue(provenance["test_used"])
+            self.assertFalse(provenance["normal_holdout_used"])
+            self.assertEqual(provenance["pca_fit_split"], "train")
+            with (folder / "global/rankings.csv").open() as handle:
+                rankings = list(csv.DictReader(handle))
+            self.assertEqual(len(rankings), 8)
+            self.assertTrue(all(int(row["query_id"]) != int(row["candidate_id"]) for row in rankings))
+            counts = json.loads((folder / "gate_counts.json").read_text())
+            self.assertTrue(all(row["input_candidates"] == 3 and row["remaining_candidates"] == 1 for row in counts))
+
+    def test_all_does_not_evaluate_test_and_test_never_trains(self):
+        bundle = SimpleNamespace(summary=lambda: {}, signature="frozen-data")
+        with tempfile.TemporaryDirectory() as directory:
+            config = {"method": "yu", "output_dir": directory, "seed": 2026, "device": "cpu",
+                      "training": {"max_steps": None}, "torch_threads": 0}
+            with patch("shared.common.load_config", return_value=config), patch("shared.common.ensure_run", return_value="base"), \
+                    patch("shared.common.prepare_data", return_value=bundle), patch.object(yu, "preprocess_audit"), \
+                    patch.object(yu, "train_network") as train, patch.object(yu, "validate") as evaluate:
+                yu.main(["--stage", "all"])
+                self.assertEqual(train.call_count, 2)
+                self.assertEqual(evaluate.call_count, 1)
+                self.assertNotIn("split_name", evaluate.call_args.kwargs)
+                train.reset_mock(); evaluate.reset_mock()
+                yu.main(["--stage", "test"])
+                train.assert_not_called()
+                self.assertEqual(evaluate.call_args.kwargs["split_name"], "test")
+
+    def test_smoke_cannot_run_test(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = {"method": "yu", "output_dir": directory, "smoke": True, "seed": 2026,
+                      "training": {"max_steps": 8}, "torch_threads": 0}
+            with patch("shared.common.load_config", return_value=config), patch("shared.common.ensure_run", return_value="base"), \
+                    patch("shared.common.prepare_data", return_value=SimpleNamespace()), \
+                    patch.object(yu, "validate") as evaluate:
+                with self.assertRaisesRegex(ValueError, "smoke"):
+                    yu.main(["--stage", "test"])
+                evaluate.assert_not_called()
 
 
 if __name__ == "__main__":

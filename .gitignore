@@ -19,7 +19,7 @@ __pycache__/
 htmlcov/
 
 # Datasets, extracted arrays, experiment outputs and training logs
-# Keep protocol/split.csv: it is required to reproduce the frozen split.
+# Keep all frozen split/query/gallery protocols under protocol/ in version control.
 /artifacts/
 /data/
 /datasets/

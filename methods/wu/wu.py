@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Paper-based implementation of Wu et al. (2015) WMSR; train/valid only.
+"""Paper-based implementation of Wu et al. (2015) WMSR; explicit valid/test evaluation.
 
 The public functions operate on arrays and have no dependency on the project
 retriever.  Implementation conventions missing from the paper are configurable.
@@ -7,6 +7,7 @@ retriever.  Implementation conventions missing from the paper are configurable.
 from __future__ import annotations
 
 import argparse
+import csv
 from concurrent.futures import ProcessPoolExecutor
 import json
 from pathlib import Path
@@ -21,7 +22,9 @@ from skimage.measure import label, perimeter, regionprops
 from skimage.transform import hough_line, hough_line_peaks, radon, resize
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent))
+ROOT = HERE.parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 DEFAULT_PARAMETERS: dict[str, Any] = {
     "coarse_candidates": 500,
@@ -293,31 +296,38 @@ def _encode_task(task: tuple[int, np.ndarray, dict[str, Any]]) -> tuple[int, np.
     return (sample_id, *encode_wafer(wafer, settings))
 
 
-def selected_ids(bundle: Any) -> np.ndarray:
-    """WMSR needs no fit: cache only explicitly selected defective valid rows."""
-    return np.unique(np.asarray(bundle.valid_ids, dtype=np.int64))
+def selected_ids(bundle: Any, split_name: str = "valid") -> np.ndarray:
+    """WMSR needs no fit: cache only rows belonging to the requested split."""
+    if split_name not in ("valid", "test"):
+        raise ValueError("Retrieval split must be valid or test")
+    ids = bundle.valid_ids if split_name == "valid" else bundle.reserved_ids
+    return np.unique(np.asarray(ids, dtype=np.int64))
 
 
-def audit(bundle: Any, config: dict[str, Any], output: Path) -> dict[str, Any]:
-    from common import save_json
+def audit(bundle: Any, config: dict[str, Any], output: Path,
+          split_name: str = "valid") -> dict[str, Any]:
+    from shared.common import save_json
     p = parameters(config.get("parameters"))
-    ids = selected_ids(bundle)
+    ids = selected_ids(bundle, split_name)
     record = {"method": "wu", "feature_dimension": 116, "training_required": False,
-              "allowed_splits": ["train", "valid"], "feature_splits": ["valid"],
+              "allowed_splits": ["valid", "test (explicit --stage test only)"], "feature_splits": [split_name],
               "normal_features_required": False, "data_signature": bundle.signature,
               "selected_rows": len(ids),
               "counts": {key: len(getattr(bundle, key)) for key in
                          ("train_ids", "valid_ids", "normal_train_ids", "normal_valid_ids")},
-              "parameters": p, "test_accessed": False}
+              "parameters": p, "test_requested": split_name == "test", "test_accessed": False}
     save_json(output / "audit.json", record)
     return record
 
 
-def prepare(bundle: Any, config: dict[str, Any], output: Path, workers: int) -> dict[str, Any]:
-    from common import read_json, save_json, signature
+def prepare(bundle: Any, config: dict[str, Any], output: Path, workers: int,
+            split_name: str = "valid") -> dict[str, Any]:
+    from shared.common import read_json, save_json, signature
     p = parameters(config.get("parameters"))
-    ids = selected_ids(bundle)
-    cache_signature = signature({"bundle": bundle.signature, "parameters": p, "ids": ids.tolist()})
+    ids = selected_ids(bundle, split_name)
+    output.mkdir(parents=True, exist_ok=True)
+    cache_signature = signature({"bundle": bundle.signature, "parameters": p,
+                                 "split": split_name, "ids": ids.tolist()})
     manifest = output / "prepare.json"
     filenames = ["feature_ids.npy", "features.npy", "ncc_full.npy", "ncc_region.npy"]
     if manifest.exists():
@@ -355,59 +365,79 @@ def prepare(bundle: Any, config: dict[str, Any], output: Path, workers: int) -> 
               "rows": len(ids), "dimension": 116, "zero_variance_full": empty_full,
               "zero_variance_region": empty_region, "workers": workers,
               "elapsed_seconds": time.perf_counter() - started,
-              "files": filenames, "parameters": p}
+              "files": filenames, "parameters": p, "split": split_name,
+              "test_accessed": split_name == "test"}
     save_json(manifest, record)
     return record
 
 
-def validate(bundle: Any, config: dict[str, Any], output: Path) -> dict[str, Any]:
-    from common import evaluate_rankings, make_valid_pool, read_json, save_csv, save_json, signature
+def validate(bundle: Any, config: dict[str, Any], output: Path,
+             split_name: str = "valid") -> dict[str, Any]:
+    from shared.common import evaluate_rankings, make_retrieval_pool, read_json, save_json, signature
     p = parameters(config.get("parameters"))
     manifest = output / "prepare.json"
     if not manifest.exists():
         raise FileNotFoundError("Run --stage prepare before --stage valid")
     ids = np.load(output / "feature_ids.npy", allow_pickle=False)
-    expected = signature({"bundle": bundle.signature, "parameters": p, "ids": selected_ids(bundle).tolist()})
-    if read_json(manifest).get("cache_signature") != expected or not np.array_equal(ids, selected_ids(bundle)):
+    selected = selected_ids(bundle, split_name)
+    expected = signature({"bundle": bundle.signature, "parameters": p,
+                          "split": split_name, "ids": selected.tolist()})
+    if read_json(manifest).get("cache_signature") != expected or not np.array_equal(ids, selected):
         raise ValueError("Prepared cache does not match this data/configuration")
     features = np.load(output / "features.npy", mmap_mode="r", allow_pickle=False)
     full = np.load(output / "ncc_full.npy", mmap_mode="r", allow_pickle=False)
     region = np.load(output / "ncc_region.npy", mmap_mode="r", allow_pickle=False)
     row_for_id = {int(sample_id): row for row, sample_id in enumerate(ids)}
-    pool = make_valid_pool(bundle, config)
-    rankings: dict[int, list[int]] = {}
-    rows: list[dict[str, Any]] = []
+    pool = make_retrieval_pool(bundle, config, split_name=split_name)
+    maximum = max(config["ks"])
+    csv_path, json_path = output / "rankings.csv", output / "rankings.json"
+    csv_temporary, json_temporary = csv_path.with_suffix(".csv.tmp"), json_path.with_suffix(".json.tmp")
     started = time.perf_counter()
-    for query_id, raw_candidates in pool.items():
-        query_id = int(query_id)
-        candidates = np.asarray(raw_candidates, dtype=np.int64)
-        if query_id in candidates:
-            raise ValueError("A query cannot be its own candidate")
-        query_row = row_for_id[query_id]
-        candidate_rows = np.asarray([row_for_id[int(value)] for value in candidates], dtype=np.int64)
-        ranked, scores, distances = rank_candidates(
-            features[query_row], features[candidate_rows], candidates,
-            full[query_row], full[candidate_rows], region[query_row], region[candidate_rows], p)
-        rankings[query_id] = ranked.tolist()
-        rows.extend({"query_id": query_id, "rank": rank, "candidate_id": int(candidate),
-                     "score": float(score), "coarse_distance": float(distance)}
-                    for rank, (candidate, score, distance) in enumerate(zip(ranked, scores, distances), start=1))
+    with csv_temporary.open("w", newline="", encoding="utf-8") as csv_handle, \
+            json_temporary.open("w", encoding="utf-8") as json_handle:
+        writer = csv.DictWriter(csv_handle, fieldnames=["query_id", "rank", "candidate_id", "score", "coarse_distance"])
+        writer.writeheader()
+        json_handle.write("{\n")
+
+        def rankings():
+            for number, (query_id, raw_candidates) in enumerate(pool.items()):
+                query_id = int(query_id)
+                candidates = np.asarray(raw_candidates, dtype=np.int64)
+                if query_id in candidates:
+                    raise ValueError("A query cannot be its own candidate")
+                query_row = row_for_id[query_id]
+                candidate_rows = np.asarray([row_for_id[int(value)] for value in candidates], dtype=np.int64)
+                ranked, scores, distances = rank_candidates(
+                    features[query_row], features[candidate_rows], candidates,
+                    full[query_row], full[candidate_rows], region[query_row], region[candidate_rows], p)
+                ranked, scores, distances = ranked[:maximum], scores[:maximum], distances[:maximum]
+                writer.writerows({"query_id": query_id, "rank": rank, "candidate_id": int(candidate),
+                                  "score": float(score), "coarse_distance": float(distance)}
+                                 for rank, (candidate, score, distance) in enumerate(zip(ranked, scores, distances), start=1))
+                if number:
+                    json_handle.write(",\n")
+                json_handle.write(f"  {json.dumps(str(query_id))}: {json.dumps(ranked.tolist())}")
+                yield query_id, ranked
+
+        metrics = evaluate_rankings(bundle, pool, rankings(), config["ks"], output, split_name=split_name)
+        json_handle.write("\n}\n")
+    csv_temporary.replace(csv_path)
+    json_temporary.replace(json_path)
     elapsed = time.perf_counter() - started
-    save_json(output / "rankings.json", rankings)
-    save_csv(output / "rankings.csv", rows, ["query_id", "rank", "candidate_id", "score", "coarse_distance"])
-    metrics = evaluate_rankings(bundle, pool, rankings, config["ks"], output)
-    record = {"method": "wu", "queries": len(rankings), "coarse_candidates": p["coarse_candidates"],
+    record = {"method": "wu", "split": split_name, "queries": len(pool), "coarse_candidates": p["coarse_candidates"],
               "beta": p["beta"], "ranking_seconds": elapsed, "metrics": metrics,
-              "training_required": False, "test_accessed": False}
-    save_json(output / "valid_summary.json", record)
+              "ranking_storage": "top max(ks), streamed; metric denominators use the full gallery",
+              "stored_ranking_limit": maximum,
+              "training_required": False, "test_accessed": split_name == "test"}
+    save_json(output / f"{split_name}_summary.json", record)
     return record
 
 
 def main(argv: list[str] | None = None) -> int:
-    from common import ensure_run, load_config, prepare_data
+    from shared.common import ensure_run, load_config, make_retrieval_pool, prepare_data
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=str(HERE / "config.json"))
-    parser.add_argument("--stage", choices=["audit", "prepare", "valid", "all"], default="audit")
+    parser.add_argument("--stage", choices=["audit", "prepare", "valid", "test", "all"], default="audit")
     parser.add_argument("--output-dir", help="Override output directory, relative to compared_methods")
     parser.add_argument("--workers", type=int, default=1)
     args = parser.parse_args(argv)
@@ -422,11 +452,20 @@ def main(argv: list[str] | None = None) -> int:
     output = Path(config["output_dir"])
     output.mkdir(parents=True, exist_ok=True)
     bundle = prepare_data(config)
-    result: dict[str, Any] = {"audit": audit(bundle, config, output)}
+    if args.stage == "test" and config.get("smoke", False):
+        raise ValueError("Test requires the full frozen protocol; smoke configurations cannot run test")
+    selected_split = "test" if args.stage == "test" else "valid"
+    audit_output = output / "test" if args.stage == "test" else output
+    result: dict[str, Any] = {"audit": audit(bundle, config, audit_output, split_name=selected_split)}
     if args.stage in ("prepare", "all"):
         result["prepare"] = prepare(bundle, config, output, args.workers)
     if args.stage in ("valid", "all"):
         result["valid"] = validate(bundle, config, output)
+    if args.stage == "test":
+        # Validate the frozen full-test protocol before any test feature work.
+        make_retrieval_pool(bundle, config, split_name="test")
+        result["prepare_test"] = prepare(bundle, config, output / "test", args.workers, split_name="test")
+        result["test"] = validate(bundle, config, output / "test", split_name="test")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

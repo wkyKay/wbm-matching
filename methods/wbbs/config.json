@@ -1,0 +1,22 @@
+{
+  "method": "wbbs",
+  "seed": 2026,
+  "data_file": "../data/wm38k/Wafer_Map_Datasets.npz",
+  "split_file": "protocol/deduplicated/split.csv",
+  "retrieval_protocol_dir": "protocol/retrieval_v1",
+  "output_dir": "artifacts/wbbs_retrieval_v1",
+  "subset": {
+    "train_per_class": null,
+    "valid_per_class": null,
+    "normal_train": null,
+    "normal_valid": null
+  },
+  "parameters": {
+    "sigma_d": 9.0,
+    "noise_threshold": 0.32,
+    "alpha": 5.0,
+    "mu": 1.0,
+    "total_dies": 2061,
+    "block_size": 256
+  }
+}
