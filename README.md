@@ -14,7 +14,7 @@ Coverage-nDCG 和覆盖阈值指标尚未接入本仓库的统一评价入口；
 | 需求 | 文档 |
 | --- | --- |
 | 了解五个方法、训练与 test 命令 | [五方法运行指南](docs/RUN_GUIDE.md) |
-| 查看统一评价公式、排序规则和产物 | [统一 exact_v1 评价](docs/EXACT_EVALUATION.md) |
+| 查看 exact_v1 公式、覆盖率设计、排序规则和产物 | [统一评价说明](docs/EXACT_EVALUATION.md) |
 | 查看训练边界、参数与论文复现约定 | 各方法的 README：[`wu`](methods/wu/README.md)、[`yu`](methods/yu/README.md)、[`wbbs`](methods/wbbs/README.md)、[`nakazawa`](methods/nakazawa/README.md)、[`wmhd`](methods/wmhd/README.md) |
 | 查看冻结数据与 query/gallery 协议 | [协议说明](protocol/README.md) |
 | 查看实现验证和 smoke 范围 | [验证记录](docs/VALIDATION.md) |

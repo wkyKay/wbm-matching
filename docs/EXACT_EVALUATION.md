@@ -1,11 +1,13 @@
-# 五方法统一完整组合评价（exact_v1）
+# 五方法统一评价说明
 
-统一入口为 `scripts/evaluate.py`。它只评价“查询与候选的八维缺陷标签完全相同”，
-适用于 Wu、Yu、WBBS、Nakazawa 和 WMHD；不包含方向覆盖率、阈值覆盖或 nDCG。
+统一入口为 `scripts/evaluate.py`，适用于 Wu、Yu、WBBS、Nakazawa 和 WMHD。
+当前已实现第一类 exact_v1 评价；第二类方向性类别覆盖评价在本文件中记录设计，尚未接入代码。
 方法生成排序时不读取真实标签，真实标签仅供协议审计和评价使用。
 从训练到最终 test 的逐方法操作与产物位置见 [五方法运行指南](RUN_GUIDE.md)。
 
-## 固定数据和指标
+## 第一类评价：完整组合相同（exact_v1）
+
+### 固定数据与 exact_v1 指标
 
 继续读取既有 `protocol/deduplicated/split.csv` 与 `protocol/retrieval_v1/`，不重新划分、抽样或编号。
 valid 为固定 500 query、3,599 gallery，每个 query 有 3,598 个候选；test 为全部 7,199 query、
@@ -32,6 +34,101 @@ Hit@K 不称为 Recall@K；它不区分前 K 项命中一个还是多个。
 并记录实际类数、各指标有效类数。另按单标签／混合标签、查询标签数量报告分组 query 平均。
 `per_query.csv` 保存逐 query 的 AP@K 等指标，`per_class.csv` 保存逐组合类别的 mAP@K 等均值。
 类别宏平均对应完整组合类别，不是八个基础缺陷类别的平均。
+
+## 第二类评价设计：方向性类别覆盖（尚未接入代码）
+
+论文的主任务是判断候选是否覆盖查询图中的缺陷类别。该任务与上面的 exact_v1 是两种不同的
+相关性定义：exact_v1 要求完整八维标签组合相同；覆盖评价允许候选包含查询中没有的额外类别。
+本节冻结评价设计，当前 `scripts/evaluate.py`、`shared/exact_metrics.py` 和五方法统一产物尚未实现
+这些字段，也不能把本节当作已经完成的实验结果。
+
+### 方向性覆盖率
+
+令 `Lq` 和 `Lc` 分别为 query 与 candidate 的非空缺陷类别集合，定义：
+
+```text
+coverage(q, c) = |Lq ∩ Lc| / |Lq|
+```
+
+这是 query → candidate 的有方向定义。候选额外类别不降低覆盖率，因此：
+
+| Query | Candidate | coverage | 解释 |
+| --- | --- | ---: | --- |
+| `{A,B}` | `{A,B}` | 1 | 完整覆盖，也是 exact 匹配 |
+| `{A,B}` | `{A,B,C}` | 1 | 完整覆盖，但不是 exact 匹配 |
+| `{A,B}` | `{A}` | 0.5 | 部分覆盖 |
+| `{A,B}` | `{C}` | 0 | 不覆盖 |
+
+反向查询的覆盖率一般不同，例如 `{A,B,C}` 查询 `{A,B}` 的覆盖率为 `2/3`。不使用 Jaccard
+作为主相关性，因为 Jaccard 会惩罚候选额外类别，与本项目的覆盖目标不一致。
+
+### 主排序指标：Coverage-nDCG 和 MeanCoverage
+
+Coverage-nDCG 将上述 coverage 直接作为**线性分级增益**。对方法返回的第 `r` 个结果，令
+`g_r=coverage(q,c_r)`：
+
+```text
+DCG@K  = Σ(r=1..K) g_r / log2(r+1)
+IDCG@K = 对完整候选池中的 g 按降序排列后计算同一公式
+Coverage-nDCG@K = DCG@K / IDCG@K
+```
+
+`IDCG` 必须由该 query 的完整固定 gallery 计算，而不是由方法返回的 Top-K 估计。完整覆盖候选
+的增益为 1，部分覆盖候选的增益为 `0<g<1`，不覆盖候选的增益为 0。这样可以同时评价完整覆盖
+是否排在部分覆盖之前，以及不同部分覆盖程度的相对顺序。若一个 query 的完整候选池全部为零覆盖、
+导致 `IDCG=0`，该 query 的 Coverage-nDCG 记为未定义并从均值排除，同时报告有效 query 数。
+
+另报告前 K 个结果的平均覆盖程度：
+
+```text
+MeanCoverage@K = (1/K) × Σ(r=1..K) g_r
+```
+
+返回不足 K 个结果时，缺位按零覆盖处理。MeanCoverage 反映前列结果实际覆盖了多少查询类别，
+Coverage-nDCG 反映它们是否接近该 query 的理想覆盖排序；前者是直观辅助指标，后者是主要分级排序指标。
+
+### 完整覆盖的二值指标
+
+完整覆盖是覆盖率评价中的一个特例，而不是 exact 的同义词：
+
+```text
+rel_full(q,c) = 1[coverage(q,c)=1] = 1[Lq ⊆ Lc]
+```
+
+对 `rel_full` 沿用 Hit、Precision、Recall 和 AP/mAP：
+
+| 指标 | 含义 |
+| --- | --- |
+| FullCoverage Hit@K | 前 K 项是否至少出现一个完整覆盖候选 |
+| FullCoverage Precision@K | 前 K 项中完整覆盖候选的比例 |
+| FullCoverage Recall@K | 前 K 项找回的完整覆盖候选数 / 完整 gallery 中的完整覆盖候选总数 |
+| FullCoverage AP@K / mAP@K | 按完整覆盖二值相关性计算的截断 AP 及 query 平均 |
+
+完整覆盖的 Recall/AP 分母记为 `R_full(q)`，必须从完整固定候选池计算，不能只统计已返回的结果，
+也不能使用 exact 正样本数量。`R_full=0` 时，FullCoverage Recall/AP 从相应均值排除；
+Hit/Precision 是否计入，沿用本节 exact 指标的零相关处理并报告有效数量。
+
+### 部分覆盖阈值与分组
+
+当前不把 `0<coverage<1` 单独当作二值正样本，因为这样会把更高等级的完整覆盖排除在外，
+不符合“覆盖越多越好”的排序目标。若应用场景明确规定“至少覆盖一定比例才有用”，可在看 test
+结果之前预先固定阈值 `τ`：
+
+```text
+rel_τ(q,c) = 1[coverage(q,c) ≥ τ]
+```
+
+再对 `rel_τ` 计算同一套 Hit/Precision/Recall/AP。`τ=0.5` 只是候选方案，不是当前已冻结的
+正式阈值；对两标签 query 它表示至少覆盖一个类别，对三标签 query 则表示至少覆盖两个类别，
+所以应同时按 query 标签数量报告。`coverage>0` 可作为“任意重合”的诊断，但不建议作为论文主指标。
+
+Coverage-nDCG、MeanCoverage 和 FullCoverage 指标沿用当前固定 K、完整 gallery、自身排除、
+query 平均、完整组合类别宏平均及 single/mixed 分组。单标签 query 的 coverage 只有 0 或 1，
+不能检验部分覆盖等级；混合标签 query 是该任务的主要分析对象。
+
+论文主评价组合暂定为：Coverage-nDCG@10/@20、MeanCoverage@10/@20、FullCoverage mAP@K 和
+FullCoverage Recall@K；exact_v1 指标作为独立的完全匹配参考。具体主表 K、是否加入 `τ=0.5`
+及其报告范围，须在正式 test 之前确定，不能根据 test 结果挑选。
 
 ## 排序与方法边界
 
