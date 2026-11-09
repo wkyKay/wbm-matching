@@ -3,6 +3,23 @@
 本文件随目录整理移入 `docs/`。下方历史命令保留执行时的旧路径；当前运行入口见
 [总说明](../README.md)，方法位于 `methods/`，协议生成脚本位于 `scripts/`。
 
+## WMHD O1 有效点对精确计算（2026-11-09）
+
+正式 valid 运行发现，密集实现对阈值之外、最终必定被 O1 排除的点对也计算了九项权重。
+现实现保留相同空间距离与严格阈值，只计算有效点对的权重，再按原 query 行序求和。
+W0/W1/W2、O0/O1、outlier 惩罚、候选库与全部配置数值不变。
+
+- 全套 **156 项测试通过**；新增密集公式与稀疏实现逐位相同的回归覆盖三种权重、
+  三种 chunk、四种阈值，包括零 mountain 值与全匹配/无匹配情况。
+- 真实 valid 特征按点数分位数取 8 个 query、64 个候选位置，排除相同图后共 504 对。
+  所有分数逐位一致；本次样本密集/稀疏时间比为约 **16.54 倍**，不是全 test 加速比承诺。
+- 原正式 WMHD valid 中间产物保留在 `evaluation/wmhd_valid/`，附 `interrupted.json`，
+  没有完成标记，不作为成绩。以相同配置重新执行到 `wmhd_valid_r2`、`wmhd_test_r2`。
+
+证据位于 `artifacts/formal_exact_20261109_120738/` 的 `wmhd_sparse_tests.log`、
+`wmhd_sparse_benchmark.json`、`benchmark_wmhd.py`、`wmhd_attempt1_status.json` 和
+`wmhd_r2_source_hashes.json`。该性能改进不改变其他四方法的模型、打分或正在运行的源码。
+
 ## 全候选 query 并行执行检查（2026-11-09）
 
 正式全流程运行前新增 `--rank-workers`：只并行不同 query，各 query 的完整候选、

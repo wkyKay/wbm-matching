@@ -142,6 +142,33 @@ class WMHDTests(unittest.TestCase):
         np.testing.assert_array_equal(ids, [2, 9, 5])
         np.testing.assert_allclose(scores, [0, 0, -0.1])
 
+    def test_sparse_allowed_weights_are_bitwise_equal_to_dense_reference(self):
+        rng = np.random.default_rng(7199)
+        for design in ("W0", "W1", "W2"):
+            for chunk in (1, 7, 256):
+                for tolerance in (1e-8, 0.1, 0.7, 5.0):
+                    query = feature(rng.uniform(-1, 1, (31, 2)))
+                    candidate = feature(rng.uniform(-1, 1, (43, 2)))
+                    query.neighborhoods[:] = rng.uniform(0, 2, (31, 9))
+                    candidate.neighborhoods[:] = rng.uniform(0, 2, (43, 9))
+                    query.neighborhoods[::3] = 0
+                    candidate.neighborhoods[::4] = 0
+                    summed, outliers = 0., 0
+                    for start in range(0, len(query.points), chunk):
+                        spatial = wmhd.cdist(query.points[start:start + chunk], candidate.points, metric="cityblock")
+                        weighted = spatial * wmhd.weight_matrix(query.neighborhoods[start:start + chunk],
+                                                               candidate.neighborhoods, design)
+                        allowed = spatial < tolerance
+                        matched = allowed.any(axis=1)
+                        weighted[~allowed] = np.inf
+                        summed += float(weighted[matched].min(axis=1).sum())
+                        outliers += int((~matched).sum())
+                    expected = summed / len(query.points) + outliers * tolerance
+                    with self.subTest(design=design, chunk=chunk, tolerance=tolerance):
+                        self.assertEqual(wmhd.distance(query, candidate, {
+                            "weight_design": design, "point_chunk_size": chunk,
+                            "matching_tolerance": tolerance}), expected)
+
     def test_ranking_optional_self_exclusion_and_id_validation(self):
         q = feature([[0, 0]])
         ids, scores = wmhd.rank_candidates(q, iter([q, q]), [7, 2], query_id=7)

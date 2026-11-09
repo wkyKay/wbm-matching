@@ -231,15 +231,28 @@ def distance(query: WMHDFeatures, candidate: WMHDFeatures,
     for start in range(0, n_query, chunk):
         stop = min(start + chunk, n_query)
         spatial = cdist(query.points[start:stop], candidate.points, metric="cityblock")
-        weighted = spatial * weight_matrix(query.neighborhoods[start:stop],
-                                          candidate.neighborhoods, p["weight_design"])
         if p["outlier_penalty"]:
             allowed = spatial < tolerance
             matched = allowed.any(axis=1)
-            weighted[~allowed] = np.inf
-            summed += float(weighted[matched].min(axis=1).sum())
+            # O1 excludes all other point pairs from the minimum. Compute the
+            # identical W0/W1/W2 terms only for allowed pairs, retaining the
+            # original component accumulation and matched-row summation order.
+            rows, columns = np.nonzero(allowed)
+            weights = np.ones(len(rows)) if p["weight_design"] == "W0" else np.zeros(len(rows))
+            for k in ([4] if p["weight_design"] == "W1" else
+                      range(9) if p["weight_design"] == "W2" else ()):
+                a = query.neighborhoods[start:stop, k][rows]
+                b = candidate.neighborhoods[columns, k]
+                denominator = np.maximum(a, b)
+                weights += np.divide(np.abs(a - b), denominator,
+                                     out=np.zeros(len(rows)), where=denominator > 0)
+            minima = np.full(stop - start, np.inf)
+            np.minimum.at(minima, rows, spatial[rows, columns] * weights)
+            summed += float(minima[matched].sum())
             outliers += int((~matched).sum())
         else:
+            weighted = spatial * weight_matrix(query.neighborhoods[start:stop],
+                                              candidate.neighborhoods, p["weight_design"])
             summed += float(weighted.min(axis=1).sum())
     return summed / n_query + (outliers * tolerance if p["outlier_penalty"] else 0.0)
 

@@ -99,5 +99,11 @@ scores = score_candidates(features[query_id],
 强制移除自身。现有统一驱动调用单图／点集打分接口，再按统一哈希规则排序，
 不沿用原始 ID 并列规则；本目录没有自行构造 test query/gallery 或重新采样的逻辑。
 
+O1 的计算只对 `L1 < matching_tolerance` 的有效点对累加 W0/W1/W2 权重，再取每个
+query 点的最小加权距离。距离矩阵、严格阈值、九项权重累加顺序、原始 query 点数分母
+和 outlier 惩罚保持原式；O0 仍计算所有点对。这是等价的稀疏计算，所有候选图仍参与评分。
+已用密集公式回归及真实 valid 点数分位数样本确认分数逐位一致，详见
+[验证记录](../../docs/VALIDATION.md)。
+
 本地原文依据：`related_works/Hsu 等 - 2020 - Similarity matching of wafer bin maps for manufacturing intelligence to empower Industry 3.5 for sem.pdf`
 §3.2–3.3、Eq. (1)–(6)、§4.2；参数补充来源为同目录的 Lee 2021 全文 §IV-C。
