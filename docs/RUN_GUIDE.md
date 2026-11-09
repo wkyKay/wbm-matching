@@ -43,6 +43,11 @@ GPU 服务器应使用与驱动匹配的 CUDA PyTorch 环境，再补齐 `requir
 python -c "import sys, torch; print(sys.executable); print(torch.__version__, torch.version.cuda); print('CUDA available:', torch.cuda.is_available())"
 ```
 
+已有 Conda 环境时先执行 `conda activate wbm`。非交互 SSH 会话通常需要先
+`source ~/miniconda3/etc/profile.d/conda.sh`（按实际 Conda 安装位置调整）。
+若遇到 `MKL_THREADING_LAYER=INTEL is incompatible with libgomp.so.1`，在启动 Python 前
+设置 `export MKL_THREADING_LAYER=GNU`；这是当前会话的线程库兼容设置，无需重装 PyTorch。
+
 Yu、Nakazawa 的正式命令以下均显式使用 `--device cuda`。没有 CUDA 时可改为 `--device cpu`，
 训练和推断会在 CPU 执行。三个无训练方法使用 CPU，`--workers 4` 仅并行准备单图特征，
 不表示逐查询的候选匹配也会自动并行。
@@ -447,3 +452,45 @@ Precision 分母为 K；Recall 与截断 AP 的分母为完整固定候选池中
 
 正式命令使用 `config.json`。`smoke.json` 仅用于小 valid 子集的流程检查，不能运行 test，也不能作为正式成绩。
 当前实现验证范围见 [VALIDATION.md](VALIDATION.md)；运行本指南中的命令才会产生相应的新实验结果。
+
+## 10 GPU 服务器上的五方法 smoke
+
+以下命令在仓库根目录运行。先确认指定 GPU 空闲，再按实际编号调整 `CUDA_VISIBLE_DEVICES`。
+仅 Yu、Nakazawa 进行 smoke 配置限定的少量训练；五个方法统一评价小 valid 池，不运行 test。
+所有输出进入本次新目录，重复执行时自动生成新的目录名。
+
+```bash
+conda activate wbm
+export CUDA_VISIBLE_DEVICES=0
+export MKL_THREADING_LAYER=GNU
+export OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4 MKL_NUM_THREADS=4
+set -e
+mkdir -p artifacts
+smoke_run=$(mktemp -d "$PWD/artifacts/server_smoke_XXXXXXXX")
+python -m unittest discover -s tests -v > "$smoke_run/tests.log" 2>&1
+for method in yu nakazawa; do
+  python -u "methods/$method/$method.py" \
+    --config "methods/$method/smoke.json" --stage train --device cuda \
+    --output-dir "$smoke_run/training/$method" \
+    > "$smoke_run/${method}_train.log" 2>&1
+done
+for method in wu wbbs wmhd; do
+  python -u scripts/evaluate.py \
+    --config "methods/$method/smoke.json" --split valid --workers 2 \
+    --output-dir "$smoke_run/evaluation/$method" \
+    > "$smoke_run/${method}_evaluate.log" 2>&1
+done
+for method in yu nakazawa; do
+  python -u scripts/evaluate.py \
+    --config "methods/$method/smoke.json" --split valid --device cuda \
+    --source-run "$smoke_run/training/$method" \
+    --output-dir "$smoke_run/evaluation/$method" \
+    > "$smoke_run/${method}_evaluate.log" 2>&1
+done
+printf 'Smoke outputs: %s\n' "$smoke_run"
+```
+
+成功时五个 `evaluation/<method>/completed.json` 都应存在，指标位于各自的
+`evaluation/<method>/valid/metrics.json`。Yu 两个网络各更新 8 次；Nakazawa 仅训练
+1 个 batch 并监测 1 个 valid batch。即使输出训练完成标记，也仅指 smoke 配置完成。
+代码或配置签名变化后重新运行到新目录，不复用旧训练产物来绕过签名检查。

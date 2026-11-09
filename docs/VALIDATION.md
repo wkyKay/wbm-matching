@@ -1,7 +1,45 @@
-# 本地验证记录
+# 验证记录
 
 本文件随目录整理移入 `docs/`。下方历史命令保留执行时的旧路径；当前运行入口见
 [总说明](../README.md)，方法位于 `methods/`，协议生成脚本位于 `scripts/`。
+
+## Linux / CUDA 五方法 smoke（2026-11-09）
+
+在现有 Conda `wbm` 环境验证：Python 3.10、NumPy 1.24.3、SciPy 1.15.3、
+scikit-learn 1.7.2、scikit-image 0.25.2、PyTorch 2.4.0 / CUDA 12.4，单张 NVIDIA A30。
+数据集 SHA-256 与冻结协议一致，未重建划分或检索清单。
+
+首次回归暴露了两个兼容问题，初始记录保留于服务器
+`artifacts/server_smoke_20261109_115121/`：
+
+- scikit-learn 1.7.2 在未开启 whitening 时仍访问 `explained_variance_`。
+  Yu 编码器现在保存和恢复真实 PCA 方差；旧档案缺失该字段时用空数组提供 NumPy namespace，
+  未开启 whitening 的投影不会读取其数值。回归覆盖新档案往返、旧档案读取及再次保存。
+- Conda 的 MKL Intel 线程层与已加载的 libgomp 冲突。本次进程设置
+  `MKL_THREADING_LAYER=GNU`，未修改 Conda 环境安装或全局配置。
+
+修复后全部重新运行到服务器 `artifacts/server_smoke_20261109_115338/`，未复用旧签名训练产物：
+
+| 检查 | 结果 |
+| --- | --- |
+| 全套回归 | 150 项通过 |
+| Wu / WBBS / WMHD | CPU、2 workers 准备特征，统一 valid smoke 通过 |
+| Yu | CUDA 检测器与分类器各 8 次更新；train-only PCA256、编码及统一 valid smoke 通过 |
+| Nakazawa | CUDA 训练 1 个 batch、监测 1 个 valid batch，最后轮权重编码及统一 valid smoke 通过 |
+| 共同池 | 五方法均为相同 8 query、74 gallery，每 query 排除自身后 73 候选 |
+| 输出 | 每方法 160 条 Top-20 排名；完成标记、产物哈希和源码哈希校验通过 |
+| 独立复核 | 从标签与排名重新计算每 query 的 Hit/P/Recall/AP@1/5/10/20 及总体均值，与报告一致 |
+| Yu 实际编码器 | 新保存文件成功重载并执行 1024 维输入到 256 维十值编码 |
+| 输入保护 | 本轮运行前后全部已跟踪文件哈希一致，原始数据哈希一致 |
+
+证据目录包含 `status.json`（逐步命令、退出码与耗时）、`tests.log`、各方法日志、
+`environment.txt`、`runtime_environment.json`、`source_hashes.json`、`code.patch`、
+`verify.py` 和 `verification.json`。`git_commit.txt` 记录基础提交，`code.patch` 记录本轮
+验证时尚未提交的兼容性修复；精确执行源码由 `source_hashes.json` 确定。
+训练产物位于 `training/{yu,nakazawa}/`，评价产物位于 `evaluation/<method>/`。
+可重复命令见 [运行指南第 10 节](RUN_GUIDE.md#10-gpu-服务器上的五方法-smoke)。
+
+以上均为流程 smoke，未运行正式 CNN 训练、完整 valid 或 test，不作为方法效果比较结果。
 
 ## 五方法第一类统一评价验证（2026-11-08）
 

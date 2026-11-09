@@ -163,6 +163,7 @@ class TenValueEncoder:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("wb") as handle:
             np.savez_compressed(handle, components=self.pca.components_, mean=self.pca.mean_,
+                                explained_variance=self.pca.explained_variance_,
                                 minimum=self.minimum, maximum=self.maximum, fit_ids=self.fit_ids,
                                 signature=np.asarray(signature), seed=np.asarray(self.seed))
 
@@ -174,6 +175,14 @@ class TenValueEncoder:
             encoder = cls(seed=int(archive["seed"]))
             encoder.pca.components_ = archive["components"].copy()
             encoder.pca.mean_ = archive["mean"].copy()
+            # Recent sklearn versions read this attribute even with whiten=False.
+            # Legacy archives omit it: an empty NumPy array supplies the array
+            # namespace without inventing variances; unwhitened PCA never uses
+            # its values. New archives preserve the fitted variances exactly.
+            encoder.pca.explained_variance_ = (
+                archive["explained_variance"].copy() if "explained_variance" in archive
+                else np.empty(0, dtype=np.float64)
+            )
             encoder.pca.n_features_in_ = 1024
             encoder.pca.n_components_ = 256
             encoder.minimum = archive["minimum"].copy()

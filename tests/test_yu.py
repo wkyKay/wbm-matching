@@ -130,7 +130,21 @@ class YuEncoderTests(unittest.TestCase):
             encoder.save(path, "train-signature")
             loaded = yu.TenValueEncoder.load(path, "train-signature")
             np.testing.assert_array_equal(loaded.fit_ids, fit_ids)
+            np.testing.assert_array_equal(loaded.pca.explained_variance_, encoder.pca.explained_variance_)
             np.testing.assert_array_equal(loaded.transform(query), encoded)
+            # Older encoders did not store variance (whitening is disabled).
+            with np.load(path, allow_pickle=False) as archive:
+                legacy = {key: archive[key].copy() for key in archive.files
+                          if key != "explained_variance"}
+            legacy_path = Path(directory) / "legacy_encoder.npz"
+            np.savez_compressed(legacy_path, **legacy)
+            restored = yu.TenValueEncoder.load(legacy_path, "train-signature")
+            self.assertEqual(restored.pca.explained_variance_.size, 0)
+            np.testing.assert_array_equal(restored.transform(query), encoded)
+            restored.save(Path(directory) / "resaved_encoder.npz", "train-signature")
+            np.testing.assert_array_equal(
+                yu.TenValueEncoder.load(Path(directory) / "resaved_encoder.npz", "train-signature").transform(query),
+                encoded)
             with self.assertRaises(ValueError):
                 yu.TenValueEncoder.load(path, "other-fit")
         with self.assertRaises(ValueError):
