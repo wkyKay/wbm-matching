@@ -1,4 +1,4 @@
-"""Independent exact-combination evaluation, without mutating training runs.
+"""Independent unified evaluation, without mutating training runs.
 
 The original method entry points and their manifests remain unchanged. This
 runner has its own version/signature and always requires a fresh output folder.
@@ -17,6 +17,7 @@ import time
 import numpy as np
 
 from . import common
+from . import coverage_metrics
 from .common import hash_file, read_json, save_json, signature
 from .retrieval_protocol import protocol_file_hashes
 from .exact_metrics import DEFAULT_KS, METRIC_VERSION, evaluate_rankings
@@ -26,7 +27,7 @@ from .evaluation_adapters import prepare_method
 METHODS = ("wu", "yu", "wbbs", "nakazawa", "wmhd")
 TRAINED_METHODS = ("yu", "nakazawa")
 SMOKE_KS = (1, 5, 10, 20)
-RUNNER_VERSION = "unified-exact-v1"
+RUNNER_VERSION = "unified-evaluation-v1"
 TIE_POLICY = "SHA256(exact_v1:tie:seed:query_id:candidate_id), first 8 bytes big-endian; ID collision fallback"
 
 
@@ -279,10 +280,12 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
         if source_record is not None:
             checkpoint_signature, source_provenance = validate_training_source(bundle, config, source_record, variant)
         files = [Path(__file__), Path(__file__).with_name("exact_metrics.py"),
+                 Path(__file__).with_name("coverage_metrics.py"),
                  Path(__file__).with_name("evaluation_adapters.py"),
                  common.ROOT / "scripts" / "evaluate.py", Path(common.__file__),
                  common.PROTOCOL_SOURCE, common.RETRIEVAL_SOURCE, _method_path(config["method"])]
         payload = {"runner_version": RUNNER_VERSION, "metric_version": METRIC_VERSION,
+            "coverage_metric_version": coverage_metrics.METRIC_VERSION,
             "method": config["method"], "variant": variant, "split": split_name,
             "ks": ks, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
             "settings": _settings(config), "data_signature": bundle.signature,
@@ -295,7 +298,8 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
                           "max_pending_queries": 2 * rank_workers if rank_workers > 1 else 1},
             "candidates_per_query": pool.candidates_per_query,
             "relevance": "exact equality of all eight defect labels",
-            "ranking_limit": max(ks), "full_mAP_reported": False}
+            "ranking_limit": max(ks), "full_mAP_reported": False,
+            "coverage_reports": True}
         eval_signature = signature(payload)
         save_json(output / "evaluation_manifest.json", {**payload, "signature": eval_signature})
         save_json(output / "resolved_config.json", config)
@@ -364,6 +368,12 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
                           "smoke": bool(config.get("smoke", False)), "ranking_limit": max_k})
         ranking_path.with_suffix(".csv.tmp").replace(ranking_path)
         counts_path.with_suffix(".csv.tmp").replace(counts_path)
+        coverage_metrics.evaluate_rankings_file(
+            bundle, pool, ranking_path, ks, destination, split_name=split_name,
+            metadata={"method": config["method"],
+                      "variant": variant, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
+                      "smoke": bool(config.get("smoke", False)), "ranking_limit": max_k,
+                      "exact_metric_version": METRIC_VERSION})
         # Reject a concurrent source change rather than publishing mixed artifacts.
         if _source_hashes(config) != payload["sources"] or any(
                 hash_file(common.ROOT / name) != digest for name, digest in payload["code"].items()):

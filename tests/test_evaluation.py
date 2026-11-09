@@ -82,7 +82,8 @@ class RunBoundaryTests(EvaluationFixture):
         serial, parallel = self.root / "serial", self.root / "parallel"
         a = evaluation.run_evaluation(config, serial, ks=[1, 2], rank_workers=1)
         b = evaluation.run_evaluation(config, parallel, ks=[1, 2], rank_workers=2)
-        for name in ("rankings.csv", "per_query.csv", "per_class.csv"):
+        for name in ("rankings.csv", "per_query.csv", "per_class.csv",
+                     "coverage_metrics.json", "coverage_per_query.csv", "coverage_per_class.csv"):
             self.assertEqual((serial / "valid" / name).read_bytes(),
                              (parallel / "valid" / name).read_bytes())
         for key in ("metrics", "class_macro_metrics", "groups"):
@@ -132,6 +133,8 @@ class RunBoundaryTests(EvaluationFixture):
             self.assertEqual(set(candidates), {2, 3, 8, 9} - {query_id})
         self.assertTrue((output / "raw_cache").is_dir())
         self.assertTrue((output / "protocol" / "valid_pool.json").is_file())
+        self.assertTrue((output / "valid" / "coverage_metrics.json").is_file())
+        self.assertTrue((output / "valid" / "coverage_per_query.csv").is_file())
 
     def test_explicit_test_passes_only_synthetic_test_ids(self):
         output, calls = self.root / "synthetic_test_evaluation", {}

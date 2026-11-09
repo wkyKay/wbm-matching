@@ -1,7 +1,8 @@
 # 五方法训练与统一 test 运行指南
 
 本指南按 Wu、Yu、WBBS、Nakazawa、WMHD 分别给出正式运行命令、训练恢复方式和产物位置。
-所有检索成绩均通过 `scripts/evaluate.py` 计算第一类指标：**查询与候选的完整缺陷标签组合相同才是正样本**。
+所有检索成绩均通过 `scripts/evaluate.py` 计算两类指标：`exact_v1` 使用完整缺陷标签组合相同，
+`coverage_v1` 使用查询缺陷类别被候选覆盖的比例。每次评价同时生成两类报告。
 
 **Wu、WBBS、WMHD 不需要训练；Yu、Nakazawa 需要先完成 CNN 训练。**
 统一评价会自行提取指定集合的特征或编码，无需先执行旧方法入口的 `prepare`、`encode`、`valid` 或 `test`。

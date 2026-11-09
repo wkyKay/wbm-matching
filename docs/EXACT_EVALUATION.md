@@ -1,7 +1,8 @@
 # 五方法统一评价说明
 
 统一入口为 `scripts/evaluate.py`，适用于 Wu、Yu、WBBS、Nakazawa 和 WMHD。
-当前已实现第一类 exact_v1 评价；第二类方向性类别覆盖评价在本文件中记录设计，尚未接入代码。
+当前已实现第一类 exact_v1 评价和第二类 coverage_v1 评价。两类报告由同一次统一评价生成，
+共享排名、完整固定候选池和 K；它们的相关性定义与聚合结果保持独立。
 方法生成排序时不读取真实标签，真实标签仅供协议审计和评价使用。
 从训练到最终 test 的逐方法操作与产物位置见 [五方法运行指南](RUN_GUIDE.md)。
 
@@ -35,12 +36,12 @@ Hit@K 不称为 Recall@K；它不区分前 K 项命中一个还是多个。
 `per_query.csv` 保存逐 query 的 AP@K 等指标，`per_class.csv` 保存逐组合类别的 mAP@K 等均值。
 类别宏平均对应完整组合类别，不是八个基础缺陷类别的平均。
 
-## 第二类评价设计：方向性类别覆盖（尚未接入代码）
+## 第二类评价：方向性类别覆盖（coverage_v1）
 
 论文的主任务是判断候选是否覆盖查询图中的缺陷类别。该任务与上面的 exact_v1 是两种不同的
 相关性定义：exact_v1 要求完整八维标签组合相同；覆盖评价允许候选包含查询中没有的额外类别。
-本节冻结评价设计，当前 `scripts/evaluate.py`、`shared/exact_metrics.py` 和五方法统一产物尚未实现
-这些字段，也不能把本节当作已经完成的实验结果。
+统一入口在保存 Top-K 排名后，从完整固定候选池计算覆盖率，并写入独立的 `coverage_v1` 报告。
+覆盖报告与 exact 报告使用相同 query/gallery 和排名；它不改变 exact_v1 的定义或结果。
 
 ### 方向性覆盖率
 
@@ -107,6 +108,8 @@ rel_full(q,c) = 1[coverage(q,c)=1] = 1[Lq ⊆ Lc]
 完整覆盖的 Recall/AP 分母记为 `R_full(q)`，必须从完整固定候选池计算，不能只统计已返回的结果，
 也不能使用 exact 正样本数量。`R_full=0` 时，FullCoverage Recall/AP 从相应均值排除；
 Hit/Precision 是否计入，沿用本节 exact 指标的零相关处理并报告有效数量。
+逐 query 与逐类别文件使用 `FullCoverageAP@K` 字段；汇总 JSON 中对应的 query 平均和类别宏平均字段名为
+`FullCoverage_mAP@K`。
 
 ### 部分覆盖阈值与分组
 
@@ -215,8 +218,10 @@ worker 数及方法变体解释。上述命令不替代各方法 README 中的�
 | --- | --- |
 | `OUT/evaluation_manifest.json` | 评价版本和签名、来源签名、K、并列规则、池规模及方法变体 |
 | `OUT/resolved_config.json`、`environment.json`、`protocol/` | 配置、环境及数据／固定 ID 审计；`raw_cache/` 为本次独立原始数组缓存 |
-| `OUT/SPLIT/metrics.json` | 指标定义、query/class 均值和分组结果 |
-| `OUT/SPLIT/per_query.csv`、`per_class.csv` | 逐 query 和逐组合类别统计 |
+| `OUT/SPLIT/metrics.json` | exact_v1 指标定义、query/class 均值和分组结果 |
+| `OUT/SPLIT/per_query.csv`、`per_class.csv` | exact_v1 逐 query 和逐组合类别统计 |
+| `OUT/SPLIT/coverage_metrics.json` | coverage_v1 定义、覆盖指标、零分母策略和分组结果 |
+| `OUT/SPLIT/coverage_per_query.csv`、`coverage_per_class.csv` | coverage_v1 逐 query 和逐组合类别统计 |
 | `OUT/SPLIT/rankings.csv` | 逐 query 流式保存最多 `max(K)` 个返回结果，不是完整全库排名文件 |
 | `OUT/SPLIT/query_diagnostics.csv` | 输入候选数、实际评分／粗筛／可返回数量及逐 query 排序耗时 |
 | `OUT/SPLIT/method.json`、`prepared/` | 方法设置、诊断和本次特征／编码 |

@@ -4,10 +4,10 @@
 五种方法共享同一份去重数据划分、固定 query/gallery 和统一评价入口，方法本身保留各自的
 特征、模型和相似度定义。
 
-当前统一评价实现的是**第一类任务：查询与候选的八维缺陷标签组合完全相同才算相关**。
-它提供 Hit@K、Precision@K、Recall@K 和截断 mAP@K。论文中的方向性类别覆盖率、
-Coverage-nDCG 和覆盖阈值指标尚未接入本仓库的统一评价入口；不要把当前 exact_v1 结果解释为
-部分覆盖排序结果。
+当前统一评价同时写出两类独立报告。第一类 `exact_v1` 要求查询与候选的八维缺陷标签组合完全相同，
+提供 Hit@K、Precision@K、Recall@K 和截断 mAP@K；第二类 `coverage_v1` 按查询缺陷类别被候选覆盖的
+比例排序，提供 Coverage-nDCG、MeanCoverage 和 FullCoverage 的二值指标。覆盖阈值 `τ` 尚未接入，
+因此 `coverage_v1` 不等同于任意预设阈值下的二值结果。
 
 ## 从哪里开始
 
@@ -75,7 +75,8 @@ Coverage-nDCG 和覆盖阈值指标尚未接入本仓库的统一评价入口；
 
 统一入口是 [`scripts/evaluate.py`](scripts/evaluate.py)，从 `compared_methods/` 目录运行。
 它先读取冻结协议，再准备目标 split 的特征，逐 query 对完整候选池评分并保存最多 `max(K)` 个结果。
-当前正式 K 为 `1, 5, 10, 20, 50, 100, 500`；smoke 只使用 valid 派生小池。
+当前正式 K 为 `1, 5, 10, 20, 50, 100, 500`；smoke 只使用 valid 派生小池。每次运行同时写出
+`exact_v1` 与 `coverage_v1` 报告，二者共享同一份排名和完整候选池。
 
 对 query q 和排名第 r 的候选，令 `rel(r)` 表示完整八维标签组合是否相同，
 令 `R` 为完整候选池中的相关候选数：
@@ -92,7 +93,8 @@ Coverage-nDCG 和覆盖阈值指标尚未接入本仓库的统一评价入口；
 Wu 还保留欧氏距离作为 NCC 重排的次排序键。Wu 的粗筛不会补排未进入 shortlist 的候选，
 但 Recall/AP 的相关数分母仍来自完整候选池。
 
-当前评价不包含 Coverage-nDCG、部分覆盖阈值或方向性覆盖率；这些属于下一阶段的独立评价设计。
+覆盖报告的定义、零分母处理和聚合方式见 [统一评价说明](docs/EXACT_EVALUATION.md)；当前版本不启用
+部分覆盖阈值 `τ`。
 
 ## 运行入口的分工
 
@@ -103,7 +105,8 @@ scripts/evaluate.py
   └─ shared/evaluation.py
       ├─ shared/common.py              数据与冻结检索池
       ├─ shared/evaluation_adapters.py 五方法特征、分数和排序适配
-      └─ shared/exact_metrics.py       exact_v1 指标与汇总
+      ├─ shared/exact_metrics.py       exact_v1 指标与汇总
+      └─ shared/coverage_metrics.py    coverage_v1 指标与汇总
 ```
 
 统一评价不会修改方法来源运行。每次评价必须指定新的输出目录；已有目录、checkpoint、缓存和排名
@@ -129,7 +132,7 @@ python -m unittest discover -s tests -v
 ## 产物与版本边界
 
 运行产物通常写入 `artifacts/`，包括配置、环境、协议摘要、特征或模型、排名、逐 query 指标、
-`metrics.json` 和完成标记。只有存在 `completed.json` 的统一评价目录才视为完成结果；失败目录中的
+`metrics.json`、`coverage_metrics.json` 和完成标记。只有存在 `completed.json` 的统一评价目录才视为完成结果；失败目录中的
 局部文件不作为 benchmark 成绩。
 
 仓库不包含原始数据、模型权重、训练缓存或正式运行产物。源码、配置、协议和来源模型签名发生变化时，
