@@ -1,7 +1,7 @@
 [
   {
     "original": "docs/CROSS_COMBINATION_COVERAGE.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/跨组合方案.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "98f9839f6b906ac62088fa5c1c5239a6020afa0421aa330cae03b0148221ee98",
     "current_topic": "docs/项目说明.md",
@@ -13,14 +13,14 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/跨组合方案.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E8%B7%A8%E7%BB%84%E5%90%88%E6%96%B9%E6%A1%88.md",
       "sha256": "294bcf6e37763c3386f40ee698e58fef1501ddb660205ee1eb47f721211b2951"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "3dc8ecee59437e1493e1f253a520bd9781ede126e28898bcd3cbd46493d49426",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/CROSS_COVERAGE_SEVEN_TEST_20261111.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/七方法跨组合结果.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "9d3b96a10943e4ab5cba21493968a4ab51672a47bb55487a0ebefdd24e8da174",
     "current_topic": "docs/项目说明.md",
@@ -32,14 +32,14 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/七方法跨组合结果.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E4%B8%83%E6%96%B9%E6%B3%95%E8%B7%A8%E7%BB%84%E5%90%88%E7%BB%93%E6%9E%9C.md",
       "sha256": "ec98e744a68eb43f456a3e6b5e9b06bc1535a5719de542d0a033ea93ed2ee09f"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "0b012b23ee4857435089f724ced99544a9471e0cb0583455755a945f17b96258",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/EXACT_EVALUATION.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/统一评价规则.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "71cdf2414233413e1cd4446291186773f8bc1316f9718d0bb229d7e652f9b134",
     "current_topic": "docs/项目说明.md",
@@ -51,14 +51,14 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/统一评价规则.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E7%BB%9F%E4%B8%80%E8%AF%84%E4%BB%B7%E8%A7%84%E5%88%99.md",
       "sha256": "e8b3f7391b88cc2f48ae1b2184bc4d87c926d720198aaa6190b2917f62c70aad"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "65ae694c63102cc26e5108eec95c765bbcc634d5a73fcb0afba3b3e4c3b80930",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/RESULTS_CATALOG.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/结果登记说明.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "5eeba289f8c887225506290e5ad169df16b662efd42f2adc81e6f75680244a16",
     "current_topic": "docs/项目说明.md",
@@ -70,14 +70,14 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/结果登记说明.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E7%BB%93%E6%9E%9C%E7%99%BB%E8%AE%B0%E8%AF%B4%E6%98%8E.md",
       "sha256": "33b951abc671e80c76af952502808ee3eaa2c0a5ecb80156b89d33be4a09796d"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "2f8fda191b8c6cc405c8a97457761b87ad0cf1b42d189fdceab5051e7eab241a",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/RUN_GUIDE.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/旧版运行指南.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "e9eb20768217041f1c3d7d4603be4d1630d2ff3d3d63d14213cdb32b9c9a4df8",
     "current_topic": "docs/项目说明.md",
@@ -89,14 +89,14 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/旧版运行指南.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E6%97%A7%E7%89%88%E8%BF%90%E8%A1%8C%E6%8C%87%E5%8D%97.md",
       "sha256": "36ca3e35aecfa7eccd14244ae5d71ed68c9812411c51ed20c3730ecbb1f1e8eb"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "4c3d99b1f1d882b09e9b03f5faf360c0ce530fafd27b59565238bc55468ca826",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/VALIDATION.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/验证记录.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "6faff6686f1829e1190ea7c381bc1fd1fce4e0abf5ea3aecc12eaf9a6e6ce2c9",
     "current_topic": "docs/项目说明.md",
@@ -271,14 +271,14 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/验证记录.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E9%AA%8C%E8%AF%81%E8%AE%B0%E5%BD%95.md",
       "sha256": "1706db666d4b19fc4b4fc827c0567dd8c6a7f6c95385253589100d77052e7ffe"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "fbec396d76ea5025018ecfd57ef76d7fe2ca5101ed971c9a85247b0152b34f42",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/WAPIRL_RESULTS_20261111.md",
-    "archive": "docs/项目说明.md",
+    "archive": "docs/history/20261116/WaPIRL整图结果.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "3accada8e3c01c9c5ba448a4a749a7caa7acc6048f2062df8c6870f458be4a17",
     "current_topic": "docs/项目说明.md",
@@ -333,9 +333,9 @@
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/WaPIRL整图结果.md",
-      "url": "https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/WaPIRL%E6%95%B4%E5%9B%BE%E7%BB%93%E6%9E%9C.md",
       "sha256": "35a7aa8a4ff17b600ec30afccca9479dde3debea40caae1ab6ecb89e4ab37b05"
     },
-    "archive_section": "历史记录"
+    "local_copy_sha256": "2a8db9dc6cb1dc6f93b11919df1372eeda4aba1634446c7d9ada5eedc2409d96",
+    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   }
 ]

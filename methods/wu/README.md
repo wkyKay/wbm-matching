@@ -75,4 +75,4 @@ valid 产物保存在运行输出根目录，test 产物单独保存在其 `test
 
 可单独验证的纯数组函数包括 `wafer_masks`、`radon_features`、`regional_features`、`statistical_features`、`hough_line_count`、`extract_features`、`largest_region`、`ncc_vector`、`ncc_score` 和 `rank_candidates`。
 
-本地真实数据 smoke、单/双进程一致性检查的执行日期、所用协议及范围见[验证记录](https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E9%AA%8C%E8%AF%81%E8%AE%B0%E5%BD%95.md)；旧协议验证不代表新协议已经完成性能评估。
+本地真实数据 smoke、单/双进程一致性检查的执行日期、所用协议及范围见[验证记录](../../docs/history/20261116/验证记录.md)；旧协议验证不代表新协议已经完成性能评估。
