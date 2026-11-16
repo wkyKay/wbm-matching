@@ -11,6 +11,15 @@
 
 ## 从哪里开始
 
+本地与服务器统一使用 `compared_methods/` 作为本仓库的工作目录，Git `origin` 均为
+`https://github.com/wkyKay/wbm-matching.git`，当前工作分支为 `main`。
+服务器旧路径 `/data/wangkaiyan2024/wbm-matching` 已于 2026-11-16 合并为指向
+`compared_methods` 的符号链接：两个路径访问的是同一份代码、同一个 `.git` 和同一份产物，
+不再分别提交或同步两个工作副本。原旧目录的六组独有实验产物已原样迁入
+`compared_methods/artifacts/`；旧绝对路径通过符号链接继续可用，冻结清单和运行签名不改写。
+整理前的旧代码、Git 元数据及缓存保存在服务器
+`.sync-backups/20261116-consolidate/retired-wbm-matching/`，仅作恢复备份，不作为活动仓库。
+
 | 需求 | 文档 |
 | --- | --- |
 | 了解五个方法、训练与 test 命令 | [五方法运行指南](docs/RUN_GUIDE.md) |
