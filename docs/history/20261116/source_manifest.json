@@ -1,7 +1,7 @@
 [
   {
     "original": "docs/CROSS_COMBINATION_COVERAGE.md",
-    "archive": "docs/history/20261116/CROSS_COMBINATION_COVERAGE.md",
+    "archive": "docs/history/20261116/跨组合方案.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "98f9839f6b906ac62088fa5c1c5239a6020afa0421aa330cae03b0148221ee98",
     "current_topic": "docs/数据划分.md",
@@ -12,7 +12,7 @@
   },
   {
     "original": "docs/CROSS_COVERAGE_SEVEN_TEST_20261111.md",
-    "archive": "docs/history/20261116/CROSS_COVERAGE_SEVEN_TEST_20261111.md",
+    "archive": "docs/history/20261116/七方法跨组合结果.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "9d3b96a10943e4ab5cba21493968a4ab51672a47bb55487a0ebefdd24e8da174",
     "current_topic": "docs/实验结果.md",
@@ -23,7 +23,7 @@
   },
   {
     "original": "docs/EXACT_EVALUATION.md",
-    "archive": "docs/history/20261116/EXACT_EVALUATION.md",
+    "archive": "docs/history/20261116/统一评价规则.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "71cdf2414233413e1cd4446291186773f8bc1316f9718d0bb229d7e652f9b134",
     "current_topic": "docs/数据划分.md",
@@ -34,7 +34,7 @@
   },
   {
     "original": "docs/RESULTS_CATALOG.md",
-    "archive": "docs/history/20261116/RESULTS_CATALOG.md",
+    "archive": "docs/history/20261116/结果登记说明.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "5eeba289f8c887225506290e5ad169df16b662efd42f2adc81e6f75680244a16",
     "current_topic": "docs/实验结果.md",
@@ -45,7 +45,7 @@
   },
   {
     "original": "docs/RUN_GUIDE.md",
-    "archive": "docs/history/20261116/RUN_GUIDE.md",
+    "archive": "docs/history/20261116/旧版运行指南.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "e9eb20768217041f1c3d7d4603be4d1630d2ff3d3d63d14213cdb32b9c9a4df8",
     "current_topic": "docs/运行指南.md",
@@ -56,7 +56,7 @@
   },
   {
     "original": "docs/VALIDATION.md",
-    "archive": "docs/history/20261116/VALIDATION.md",
+    "archive": "docs/history/20261116/验证记录.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "6faff6686f1829e1190ea7c381bc1fd1fce4e0abf5ea3aecc12eaf9a6e6ce2c9",
     "current_topic": "docs/实验结果.md",
@@ -230,7 +230,7 @@
   },
   {
     "original": "docs/WAPIRL_RESULTS_20261111.md",
-    "archive": "docs/history/20261116/WAPIRL_RESULTS_20261111.md",
+    "archive": "docs/history/20261116/WaPIRL整图结果.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "3accada8e3c01c9c5ba448a4a749a7caa7acc6048f2062df8c6870f458be4a17",
     "current_topic": "docs/实验结果.md",
