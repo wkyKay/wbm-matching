@@ -2,7 +2,7 @@
 
 来源：Yu、Xu、Wang，*Wafer Defect Pattern Recognition and Analysis Based on Convolutional Neural Network*，DOI `10.1109/TSM.2019.2937793`。本实现保留检测、分类、Fc2 特征和编码检索流程；将八种单缺陷分类改为 MixedWM38 的 37 种非空完整组合类别。它不是八标签 BCE 模型，也没有覆盖率训练损失。
 
-五方法比较请使用[统一完整组合评价](../../docs/EXACT_EVALUATION.md)。统一入口以 `global` 为主结果，
+五方法比较请使用[统一完整组合评价](../../docs/数据划分.md)。统一入口以 `global` 为主结果，
 `predicted_class` 单独作为辅助结果；只读已完成训练的 `--source-run`，PCA/缩放仍只拟合 train，
 新产物写入独立新目录。分类器仍按原最低 valid CE 选模，门控分支另外读取检测器。
 统一入口使用 SHA-256 破同分；下文原方法 CLI 与原始 ID 规则保留，其旧结果不能直接混入 exact_v1。
@@ -78,7 +78,7 @@ python compared_methods/methods/yu/yu.py --config compared_methods/methods/yu/co
 
 smoke 使用**完整网络**、batch size 2、每个网络至多 8 个训练 step。37 类各取 10 train、2 valid；Normal 仅取独立 train/valid 中的 32／16 张。PCA 仍使用 370 张真实 train 图的 FC2 特征拟合完整 256 维表示；不能用 8 张或 32 张拟合后补零替代。query 为正式固定 500 个 query 与这 74 张 valid 图的交集，每个 query 的候选为另外 73 张。这个派生调试池不能用作正式结果，也不允许执行 test。
 
-smoke 的模型只用于验证执行、维度、保存、恢复和检索链路，指标不代表训练充分后的方法性能。PCA 至少要求 257 张真实 train 特征，确保中心化后有足够的潜在秩；本地推断可分批，不需要同时把全部图放入内存。本地完整网络 CPU smoke、PCA/检索、断点恢复与多进程数据加载的执行日期、所用协议和原始产物见[验证记录](../../docs/VALIDATION.md)；旧协议验证不代表新协议已完成训练或性能评估。目标 CUDA 硬件尚未实测。
+smoke 的模型只用于验证执行、维度、保存、恢复和检索链路，指标不代表训练充分后的方法性能。PCA 至少要求 257 张真实 train 特征，确保中心化后有足够的潜在秩；本地推断可分批，不需要同时把全部图放入内存。本地完整网络 CPU smoke、PCA/检索、断点恢复与多进程数据加载的执行日期、所用协议和原始产物见[验证记录](../../docs/history/20261116/VALIDATION.md)；旧协议验证不代表新协议已完成训练或性能评估。目标 CUDA 硬件尚未实测。
 
 关键产物：`detector/{last,best}.pt`、`classifier/{last,best}.pt`、各自 history/summary、`encoder.npz`（含 train 拟合 ID）、`valid/classification.json`、两个检索报告目录以及门控数量和 provenance；test 同类评价产物保存在独立 `test/` 下。每个检索目录的 `rankings.csv` 按 query 流式记录最多 `max(ks)` 位的候选 ID、名次、categorical Hamming 距离及双方预测类别；空返回通过门控统计和 per-query 评价表保留。所有候选均参与排序，截断保存不改变指标的完整 gallery 分母。原始标签不作为线上检索打分输入。
 

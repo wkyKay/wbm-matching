@@ -3,7 +3,7 @@
 对应 survey 编号 1：*Similarity searching for fault diagnosis of defect patterns in wafer bin maps*，
 DOI [10.1016/j.cie.2023.109679](https://doi.org/10.1016/j.cie.2023.109679)。这是根据论文重实现的
 **无训练方法**，不是作者发布的代码。方法自身 CLI 保留 audit/prepare；
-五方法统一 valid/test 及完整组合指标由独立入口提供，见[统一评价说明](../../docs/EXACT_EVALUATION.md)。
+五方法统一 valid/test 及完整组合指标由独立入口提供，见[统一评价说明](../../docs/数据划分.md)。
 该入口对完整固定候选打分，用 SHA-256 处理同分，不改变 WBBS 公式或张量投票设置。
 
 实现使用同一份 MixedWM38 原图、去重划分和固定检索清单，保持 37 种完整缺陷组合。

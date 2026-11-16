@@ -2,7 +2,7 @@
 
 对应 survey 第 1.3 篇 [Wafer Map Defect Pattern Classification and Image Retrieval Using Convolutional Neural Network](https://doi.org/10.1109/TSM.2018.2795466)。这是按论文重实现并适配 MixedWM38 的 CNN 二值编码方法，不使用 Yu 的网络、预处理或选模流程。方法 CLI 提供训练、编码和 Hamming 打分，没有 `test` stage。
 
-五方法统一 valid/test 评价使用[独立入口](../../docs/EXACT_EVALUATION.md)：只读已完成训练的
+五方法统一 valid/test 评价使用[独立入口](../../docs/数据划分.md)：只读已完成训练的
 `--source-run`，保持最后一轮 checkpoint 和 256 位 Hamming 距离，使用 SHA-256 破同分，
 在新目录输出完整组合指标。正式评价要求完成正式全部 epoch；smoke 来源只能评价 smoke valid。
 

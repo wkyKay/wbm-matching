@@ -49,4 +49,4 @@ smoke 使用 `methods/wapirl/smoke.json`，每类2张 train/valid、1轮、batch
 ## 已完成的正式运行
 
 2026-11-11已完成100轮、完整valid与test，两类指标及全部逐query独立复核通过。
-详见[结果报告](../../docs/WAPIRL_RESULTS_20261111.md)。
+详见[结果报告](../../docs/history/20261116/WAPIRL_RESULTS_20261111.md)。
