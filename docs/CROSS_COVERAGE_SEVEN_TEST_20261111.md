@@ -1,6 +1,6 @@
 # 六方法与径向＋面积 F：排除同组合候选的完整 test
 
-2026-11-11，经用户授权在远程 `172.18.36.192` 启动。本文是启动记录，最终成功以远程 `completed.json` 为准。
+2026-11-11 启动；2026-11-16 复核服务器产物，七方法均已完成。根目录 `completed.json` 为 `status=completed`、`all_seven_methods_verified=true`。汇总、报告与独立验证记录的哈希已与根完成标记核对。当前自动汇总入口见 [结果登记说明](RESULTS_CATALOG.md)。
 
 ## 协议和模型
 
@@ -15,7 +15,7 @@
 
 - 工作目录：`/data/wangkaiyan2024/compared_methods/`。
 - Python：`/home/wangkaiyan2024/miniconda3/envs/wbm/bin/python`。
-- tmux：`coverage-seven-20261111`，已脱离客户端。关闭本机或 SSH 客户端不会中断；不能关闭远程服务器电源或终止 tmux。
+- 当时的 tmux 会话名为 `coverage-seven-20261111`；任务现已完成，不再以进程或会话是否存在判断成绩。
 - 输出目录：`/data/wangkaiyan2024/compared_methods/artifacts/cross_coverage_seven_test_20261111_v1/`。
 - 驱动日志：`/data/wangkaiyan2024/compared_methods/artifacts/cross_coverage_seven_test_20261111_v1_driver.log`。
 - 各方法独立 `.log`、`*_status.json`、输出子目录。WMHD rank_workers=48，Wu/WBBS=8；三个神经网络分别使用 GPU 0/1/2。其余计算限制 BLAS 线程数，避免过度并发。
@@ -34,6 +34,12 @@ ssh 172.18.36.192 'cat /data/wangkaiyan2024/compared_methods/artifacts/cross_cov
 - 16 个正式 test query 的原 Top500 ID 完全复现，分数 atol=1e-12；过滤后保留样本的分数与原候选池中对应分数一致。候选身份摘要与统一派生协议一致。
 - 本地实现：`scripts/cross_coverage_20261111/evaluate_f_area.py`、`run_seven.py`；远程对应 `scripts/evaluate_f_area_cross_20261111.py`、`run_cross_seven_20261111.py`。未修改旧模型、冻结协议或历史结果。
 
-## 后续连接状态
+## 完成结果与当前引用
 
-已确认七个子进程运行：Wu 2700986、Yu 2700988、WBBS 2700990、Nakazawa 2700992、WMHD 2700994、WaPIRL 2700995、F 2700996。WBBS/WMHD 已进入 7199 张正式 test 特征准备。随后本机 `wbm-f-eval.sock` 消失，新 SSH 连接被服务器关闭；后续进度和全部完成状态尚未确认。不能将本记录视为七方法计算已完成。
+输出根目录的 `REPORT.md`、`comparison.csv`、`comparison.json`、`independent_verification.json` 和七个方法的 `completed.json` 均已存在。2026-11-16 核对报告哈希一致；本次没有重新计算全部排名或指标，独立逐 query 复算是原运行保存的验证记录。
+
+总体 Coverage-nDCG@10：Nakazawa 80.9360%、WBBS 74.8829%、旧径向面积 F 71.2707%、Wu 65.5681%、WaPIRL 60.5532%、Yu 60.5384%、WMHD 9.1945%。完整指标由主项目 `results_catalog/tables/cross_combination.csv` 统一生成。
+
+本实验使用的 F checkpoint 为 `0085bd3b8569fae0969f2cc360fa682424e89f47f93fcc356bc17b1886a406f3`，属于 2026-11-11 旧径向面积 F；当前 cc8 主实验 checkpoint 不同。候选池也与普通 test 不同，均不能混表。
+
+2026-11-11 曾因本机连接中断未确认最终状态，那是历史启动记录，不再代表当前完成状态。

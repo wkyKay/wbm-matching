@@ -1,5 +1,7 @@
 # MixedWM38 晶圆检索方法复现
 
+**最新跨项目成绩及保存位置见 [结果登记入口](docs/RESULTS_CATALOG.md)。六方法正式 test 和跨组合七方法 test 均已有完成产物；普通与跨组合协议分别汇总。**
+
 本仓库独立实现并比较六种晶圆图检索方法：Wu、Yu、WBBS、Nakazawa CNN、WMHD 和 WaPIRL。
 六种方法共享同一份去重数据划分、固定 query/gallery 和统一评价入口，方法本身保留各自的
 特征、模型和相似度定义。
