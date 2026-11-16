@@ -4,9 +4,9 @@
 
 ## 方法与查阅入口
 
-- 本仓库包含 Wu、Yu、WBBS、Nakazawa CNN、WMHD、WaPIRL 整图适配。先读目标方法 README、`protocol/README.md`、`docs/EXACT_EVALUATION.md` 和相关验证记录；复现约定不因结果整理而改变。
+- 本仓库包含 Wu、Yu、WBBS、Nakazawa CNN、WMHD、WaPIRL 整图适配。先读目标方法 README、`protocol/README.md`、`docs/数据划分.md` 和相关验证记录；复现约定不因结果整理而改变。
 - 新方法放在 `methods/<方法>/`，复用公共数据与评价接口；不私自重划数据、抽样 query 或缩小正式 gallery。方法评分不得读取真实标签；跨组合标签过滤是显式的评价候选资格规则。
-- 最新成绩入口是 [跨项目结果登记说明](docs/RESULTS_CATALOG.md)。唯一的登记器和汇总位于相邻主项目 `../wbm-region-retrieval/results_catalog/`，不要在本仓库维护第二套独立登记表或手工成绩副本。
+- 最新成绩入口是 [跨项目结果登记说明](docs/实验结果.md)。唯一的登记器和汇总位于相邻主项目 `../wbm-region-retrieval/results_catalog/`，不要在本仓库维护第二套独立登记表或手工成绩副本。
 - 服务器活动目录为 `/data/wangkaiyan2024/compared_methods/`；旧 `wbm-matching` 是符号链接，不能当作另一个需分别更新的仓库。历史 manifest 的旧绝对路径保留。
 
 ## 新实验必须使用时间型 run_id
@@ -34,7 +34,7 @@
 
 5. 将新的快照和生成文件同步到本地；在主项目根目录可离线执行 `python3 results_catalog/build.py render` 和 `check`。若改变生成器或新增协议适配，运行主项目的 `python3 -m unittest discover -s tests -p 'test_results_catalog.py' -v` 及适用的新增验证。
 6. `snapshot.json` 由采集生成，`registry.csv`、`metrics.csv`、`tables/*.csv` 和 `CURRENT_RESULTS.md` 由脚本生成。禁止手工改数、绕过签名或修改快照来掩盖失败；来源清单改变后须重新 collect，不能继续使用旧快照。
-7. 更新本仓库相关方法 README、运行／验证记录、`docs/RESULTS_CATALOG.md` 和主项目当前入口，注明完成状态、原始路径、结果及限制；不得留下失效的“已启动、尚未确认完成”。有保存价值的旧分析原文归档并提供跳转，不把旧结论改写为新实验结论。
+7. 更新本仓库相关方法 README、运行／验证记录、`docs/实验结果.md` 和主项目当前入口，注明完成状态、原始路径、结果及限制；不得留下失效的“已启动、尚未确认完成”。有保存价值的旧分析原文归档并提供跳转，不把旧结论改写为新实验结论。
 
 ## 汇总与论文比较边界
 
@@ -53,3 +53,11 @@
 - Git 管理代码、配置、冻结协议、文档、登记器及轻量快照／汇总；不加入模型、原始数据、大型缓存或完整排名。GitHub 同步不等于大产物备份。
 - 按本会话已确认的工作约定，完成本地修改和验证后，同步相关仓库的本地、服务器和 GitHub。提交前检查三方分支和未提交改动，采用普通推送及服务器快进；不强推、不覆盖他人改动。若远程有新提交，先安全整合并验证。
 - 两项目统一使用 `main`；本仓库 origin 为 `https://github.com/wkyKay/wbm-matching.git`。修改主项目登记与汇总时须同时提交并同步主项目，不能仅推送本仓库文档。同步后核对提交号、受 Git 管理文件及工作区状态，准确报告未完成的同步或验证，不宣称原始大产物也已同步。
+
+## 文档整合与维护
+
+- 当前内容先读 [docs/README.md](docs/README.md)，按实验设计、实验结果、数据划分及运行指南四个主题维护；正文尽量白话、简短，不再按每次运行新增顶层长报告。
+- 详细数值以主项目 results_catalog 自动汇总为准；主题页只写结论、状态、来源和限制。方法专属参数仍留在对应实验／方法 README。
+- 有价值的旧分析归档到 `docs/history/<整理日期>/`，标明适用版本、原始产物路径、原文提交及后续状态；旧文件名保留简短跳转，避免旧链接失效。禁止把旧模型成绩改写成新模型成绩。
+- 修复引用时优先使用仓库相对链接；跨仓库用 GitHub 链接。未随 Git 发布的产物写明路径及所在端，不留下只在某台机器可用的 Markdown 文件链接。
+- 更新论文时同步 Markdown 与 LaTeX，明确监督信息、valid 选择及事后 test 实验边界。历史产物与冻结协议仍保持原位、原样。

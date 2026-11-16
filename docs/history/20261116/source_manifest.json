@@ -1,0 +1,285 @@
+[
+  {
+    "original": "docs/CROSS_COMBINATION_COVERAGE.md",
+    "archive": "docs/history/20261116/CROSS_COMBINATION_COVERAGE.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "98f9839f6b906ac62088fa5c1c5239a6020afa0421aa330cae03b0148221ee98",
+    "current_topic": "docs/数据划分.md",
+    "scope": "2026-11-10 跨组合协议建立时的设计与验证记录。",
+    "sources": "shared/cross_combination.py；后续 artifacts/cross_coverage_seven_test_20261111_v1/",
+    "followup": "“正式结果尚未产生”只代表当时；七方法已完成，使用旧径向面积 F。",
+    "artifact_references": []
+  },
+  {
+    "original": "docs/CROSS_COVERAGE_SEVEN_TEST_20261111.md",
+    "archive": "docs/history/20261116/CROSS_COVERAGE_SEVEN_TEST_20261111.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "9d3b96a10943e4ab5cba21493968a4ab51672a47bb55487a0ebefdd24e8da174",
+    "current_topic": "docs/实验结果.md",
+    "scope": "2026-11-11 七方法跨组合 test，2026-11-16 确认完成。",
+    "sources": "artifacts/cross_coverage_seven_test_20261111_v1/；登记 key cross_*",
+    "followup": "完成状态有效；其中 F 是旧径向面积来源，候选池与普通 test 不同。",
+    "artifact_references": []
+  },
+  {
+    "original": "docs/EXACT_EVALUATION.md",
+    "archive": "docs/history/20261116/EXACT_EVALUATION.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "71cdf2414233413e1cd4446291186773f8bc1316f9718d0bb229d7e652f9b134",
+    "current_topic": "docs/数据划分.md",
+    "scope": "早期五方法评价说明，后续追加 coverage 与跨组合协议。",
+    "sources": "shared/exact_metrics.py、shared/coverage_metrics.py、scripts/evaluate.py",
+    "followup": "公式仍适用；现有六方法，source-run 还支持 WaPIRL。普通 test 已完成，旧固定输出路径不作为新运行模板。",
+    "artifact_references": []
+  },
+  {
+    "original": "docs/RESULTS_CATALOG.md",
+    "archive": "docs/history/20261116/RESULTS_CATALOG.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "5eeba289f8c887225506290e5ad169df16b662efd42f2adc81e6f75680244a16",
+    "current_topic": "docs/实验结果.md",
+    "scope": "2026-11-16 整理前的跨项目结果导航。",
+    "sources": "主项目 results_catalog/，不是本仓库第二套登记",
+    "followup": "统一登记目录不变，中文主题页提供更简短的入口。",
+    "artifact_references": []
+  },
+  {
+    "original": "docs/RUN_GUIDE.md",
+    "archive": "docs/history/20261116/RUN_GUIDE.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "e9eb20768217041f1c3d7d4603be4d1630d2ff3d3d63d14213cdb32b9c9a4df8",
+    "current_topic": "docs/运行指南.md",
+    "scope": "原五方法运行指南及末尾追加的 WaPIRL 章节。",
+    "sources": "方法 README 和 scripts/evaluate.py；示例输出目录不等于实际已完成来源",
+    "followup": "新运行须用时间 ID；当前简明指南包含六方法、双指标与分开的计时字段。历史命令不直接重跑。",
+    "artifact_references": []
+  },
+  {
+    "original": "docs/VALIDATION.md",
+    "archive": "docs/history/20261116/VALIDATION.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "6faff6686f1829e1190ea7c381bc1fd1fce4e0abf5ea3aecc12eaf9a6e6ce2c9",
+    "current_topic": "docs/实验结果.md",
+    "scope": "2026-11-08 至 11-11 多阶段开发日志，含旧协议和 smoke。",
+    "sources": "文内各运行的 environment、测试日志及哈希；部分验证产物仅在本地",
+    "followup": "测试数量、硬件未知及未训练描述各属当时阶段，不能视为当前全项目状态。",
+    "artifact_references": [
+      {
+        "label": "最终全套测试日志",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/tests_final.log",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/tests_final.log",
+        "availability": "仅本地"
+      },
+      {
+        "label": "五方法身份、指标重算及保护文件检查",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/integration.json",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/integration.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu smoke 训练日志",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/yu_training.log",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/yu_training.log",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Wu",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/final/wu/completed.json",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/final/wu/completed.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/final/yu/completed.json",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/final/yu/completed.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "WBBS",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/final/wbbs/completed.json",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/final/wbbs/completed.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Nakazawa",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/final/nakazawa/completed.json",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/final/nakazawa/completed.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "WMHD",
+        "original": "../artifacts/exact_validation_20261108_aulfj20r/final/wmhd/completed.json",
+        "path": "compared_methods/artifacts/exact_validation_20261108_aulfj20r/final/wmhd/completed.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "全套测试",
+        "original": "../artifacts/new_methods_validation_20261108_ecd779d2/tests.log",
+        "path": "compared_methods/artifacts/new_methods_validation_20261108_ecd779d2/tests.log",
+        "availability": "仅本地"
+      },
+      {
+        "label": "五方法整合与保护检查",
+        "original": "../artifacts/new_methods_validation_20261108_ecd779d2/integration.json",
+        "path": "compared_methods/artifacts/new_methods_validation_20261108_ecd779d2/integration.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "WBBS 打分检查",
+        "original": "../artifacts/validation/wbbs_ijsdxsr2/score_smoke.json",
+        "path": "compared_methods/artifacts/validation/wbbs_ijsdxsr2/score_smoke.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "WMHD 打分检查",
+        "original": "../artifacts/validation/wmhd_final_20261108_oytaqy5m/score_api_check.json",
+        "path": "compared_methods/artifacts/validation/wmhd_final_20261108_oytaqy5m/score_api_check.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Nakazawa 训练记录",
+        "original": "../artifacts/validation/nakazawa_final_20261108_bkaul1mh/training_complete.json",
+        "path": "compared_methods/artifacts/validation/nakazawa_final_20261108_bkaul1mh/training_complete.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Nakazawa 编码记录",
+        "original": "../artifacts/validation/nakazawa_final_20261108_bkaul1mh/valid_codes/metadata.json",
+        "path": "compared_methods/artifacts/validation/nakazawa_final_20261108_bkaul1mh/valid_codes/metadata.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "整合检查",
+        "original": "../artifacts/layout_validation_20261108/integration.json",
+        "path": "compared_methods/artifacts/layout_validation_20261108/integration.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "DataLoader 检查",
+        "original": "../artifacts/validation/dataloader_workers_cb_7tgae/dataloader_workers.json",
+        "path": "compared_methods/artifacts/validation/dataloader_workers_cb_7tgae/dataloader_workers.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "integration.json",
+        "original": "../artifacts/retrieval_protocol_validation_20261108/integration.json",
+        "path": "compared_methods/artifacts/retrieval_protocol_validation_20261108/integration.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "integration.json",
+        "original": "../artifacts/deduplication_validation_20261108/integration.json",
+        "path": "compared_methods/artifacts/deduplication_validation_20261108/integration.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu 预处理审计",
+        "original": "../artifacts/yu_smoke/preprocessing/summary.json",
+        "path": "compared_methods/artifacts/yu_smoke/preprocessing/summary.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "整合检查结果",
+        "original": "../artifacts/validation/integration.json",
+        "path": "compared_methods/artifacts/validation/integration.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "DataLoader 结果",
+        "original": "../artifacts/validation/dataloader_workers.json",
+        "path": "compared_methods/artifacts/validation/dataloader_workers.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Wu 特征记录",
+        "original": "../artifacts/wu_smoke/prepare.json",
+        "path": "compared_methods/artifacts/wu_smoke/prepare.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Wu 检索记录",
+        "original": "../artifacts/wu_smoke/valid_summary.json",
+        "path": "compared_methods/artifacts/wu_smoke/valid_summary.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu 检测训练记录",
+        "original": "../artifacts/yu_smoke/detector/summary.json",
+        "path": "compared_methods/artifacts/yu_smoke/detector/summary.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu 分类训练记录",
+        "original": "../artifacts/yu_smoke/classifier/summary.json",
+        "path": "compared_methods/artifacts/yu_smoke/classifier/summary.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu PCA/推断来源",
+        "original": "../artifacts/yu_smoke/valid/provenance.json",
+        "path": "compared_methods/artifacts/yu_smoke/valid/provenance.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "Yu 检索记录",
+        "original": "../artifacts/yu_smoke/valid/summary.json",
+        "path": "compared_methods/artifacts/yu_smoke/valid/summary.json",
+        "availability": "仅本地"
+      }
+    ]
+  },
+  {
+    "original": "docs/WAPIRL_RESULTS_20261111.md",
+    "archive": "docs/history/20261116/WAPIRL_RESULTS_20261111.md",
+    "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
+    "original_sha256": "3accada8e3c01c9c5ba448a4a749a7caa7acc6048f2062df8c6870f458be4a17",
+    "current_topic": "docs/实验结果.md",
+    "scope": "F 对齐的整图 WaPIRL 适配；100 epoch，best_nce 第100轮。",
+    "sources": "artifacts/wapirl_f_aligned_v1/、wapirl_valid_v1/、wapirl_test_v1/；登记 key wapirl_valid、wapirl_test",
+    "followup": "固定结果仍有效；不包含后续与 F 的融合，不宣称原论文所有设置原样复现。",
+    "artifact_references": [
+      {
+        "label": "训练记录",
+        "original": "../artifacts/wapirl_results_20261111/wapirl_f_aligned_v1/history.json",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/wapirl_f_aligned_v1/history.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "valid exact指标",
+        "original": "../artifacts/wapirl_results_20261111/wapirl_valid_v1/valid/metrics.json",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/wapirl_valid_v1/valid/metrics.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "valid coverage指标",
+        "original": "../artifacts/wapirl_results_20261111/wapirl_valid_v1/valid/coverage_metrics.json",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/wapirl_valid_v1/valid/coverage_metrics.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "test exact指标",
+        "original": "../artifacts/wapirl_results_20261111/wapirl_test_v1/test/metrics.json",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/wapirl_test_v1/test/metrics.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "test coverage指标",
+        "original": "../artifacts/wapirl_results_20261111/wapirl_test_v1/test/coverage_metrics.json",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/wapirl_test_v1/test/coverage_metrics.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "独立验证记录",
+        "original": "../artifacts/wapirl_results_20261111/wapirl_pipeline_20261111/independent_verification.json",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/wapirl_pipeline_20261111/independent_verification.json",
+        "availability": "仅本地"
+      },
+      {
+        "label": "训练曲线",
+        "original": "../artifacts/wapirl_results_20261111/training_curve.png",
+        "path": "compared_methods/artifacts/wapirl_results_20261111/training_curve.png",
+        "availability": "本地和服务器"
+      }
+    ]
+  }
+]
