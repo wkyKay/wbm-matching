@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-16",
+  "original_root": "/data/wangkaiyan2024",
+  "files": [
+    {
+      "original_path": "/data/wangkaiyan2024/run_wapirl_formal_20261111.sh",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "scripts",
+      "destination": "compared_methods/scripts/historical/20261111/wapirl/run_wapirl_formal_20261111.sh",
+      "repository_relative_destination": "scripts/historical/20261111/wapirl/run_wapirl_formal_20261111.sh",
+      "sha256": "ee2861e254510dc07d72032dbf0c1f2b15c2a90154f2ee8256ebd126043d399e",
+      "size": 764,
+      "mtime_ns": 1794371741232753166,
+      "mode": 420,
+      "original_backup_path": "/data/wangkaiyan2024/.sync-backups/20261116-organize-root/original-scripts/run_wapirl_formal_20261111.sh"
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_pipeline_20261111.log",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "logs",
+      "destination": "compared_methods/archives/20261111/wapirl/logs/wapirl_pipeline_20261111.log",
+      "repository_relative_destination": "archives/20261111/wapirl/logs/wapirl_pipeline_20261111.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0,
+      "mtime_ns": 1794371751368774926,
+      "mode": 436
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_protected_hashes.json",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "scripts",
+      "destination": "compared_methods/scripts/historical/20261111/wapirl/wapirl_protected_hashes.json",
+      "repository_relative_destination": "scripts/historical/20261111/wapirl/wapirl_protected_hashes.json",
+      "sha256": "2d368ed33b1e24de596342c07449cda483b1c9465b8627f7dfa4441fe0ae973c",
+      "size": 3484,
+      "mtime_ns": 1794372272530469676,
+      "mode": 420,
+      "original_backup_path": "/data/wangkaiyan2024/.sync-backups/20261116-organize-root/original-scripts/wapirl_protected_hashes.json"
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_results_20261111.tar.gz",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "bundles",
+      "destination": "compared_methods/archives/20261111/wapirl/bundles/wapirl_results_20261111.tar.gz",
+      "repository_relative_destination": "archives/20261111/wapirl/bundles/wapirl_results_20261111.tar.gz",
+      "sha256": "c4f5d8678634122d9bc4ee66c492be6802151753f7a87a94ae052ee51d50ab86",
+      "size": 73401653,
+      "mtime_ns": 1794375067129582705,
+      "mode": 436
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_smoke_20261111.log",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "logs",
+      "destination": "compared_methods/archives/20261111/wapirl/logs/wapirl_smoke_20261111.log",
+      "repository_relative_destination": "archives/20261111/wapirl/logs/wapirl_smoke_20261111.log",
+      "sha256": "05c931528d827d4ca3d103d6317d804bfe7f651b488fec614f0c609d70396e65",
+      "size": 57,
+      "mtime_ns": 1794371709772684617,
+      "mode": 436
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_smoke_eval_20261111.log",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "logs",
+      "destination": "compared_methods/archives/20261111/wapirl/logs/wapirl_smoke_eval_20261111.log",
+      "repository_relative_destination": "archives/20261111/wapirl/logs/wapirl_smoke_eval_20261111.log",
+      "sha256": "4613cee1659248df3627dcaf7607e1f824c2e406e94c0b5a50707dd091c6fc04",
+      "size": 9033,
+      "mtime_ns": 1794371730316729556,
+      "mode": 436
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_source_20261111.tar.gz",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "bundles",
+      "destination": "compared_methods/archives/20261111/wapirl/bundles/wapirl_source_20261111.tar.gz",
+      "repository_relative_destination": "archives/20261111/wapirl/bundles/wapirl_source_20261111.tar.gz",
+      "sha256": "82f0b47d1e5e0f2163c09f6d51a0311c837dec18d94979edd879b3c843074040",
+      "size": 661640,
+      "mtime_ns": 1794371664688583563,
+      "mode": 420
+    },
+    {
+      "original_path": "/data/wangkaiyan2024/wapirl_tests_20261111.log",
+      "repository": "compared_methods",
+      "experiment": "wapirl",
+      "category": "logs",
+      "destination": "compared_methods/archives/20261111/wapirl/logs/wapirl_tests_20261111.log",
+      "repository_relative_destination": "archives/20261111/wapirl/logs/wapirl_tests_20261111.log",
+      "sha256": "272cbcf71fe00e74865c403ee3b80d677d31c76b87007b9164c4b8f9bbd88ada",
+      "size": 2802,
+      "mtime_ns": 1794371700256663571,
+      "mode": 436
+    }
+  ]
+}
