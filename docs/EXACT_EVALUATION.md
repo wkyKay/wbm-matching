@@ -235,3 +235,7 @@ worker 数及方法变体解释。上述命令不替代各方法 README 中的�
 
 实际验证范围见 [VALIDATION.md](VALIDATION.md)。新增统一入口不代表已经完成正式 CNN 训练、
 正式完整 test 或原论文数值复现；smoke 只验证实现链路。
+
+## 独立跨组合覆盖实验（2026-11-10）
+
+统一入口新增 `--exclude-exact`：在方法打分和粗筛之前排除与 query 完整标签组合相同的候选，保留跨组合完整覆盖、部分覆盖及零覆盖。它不修改冻结清单；在独立新目录仅输出 coverage 报告。未传该选项时保持上述原协议。F 使用独立只读入口。候选范围、零分母规则与六方法命令见 [CROSS_COMBINATION_COVERAGE.md](CROSS_COMBINATION_COVERAGE.md)。

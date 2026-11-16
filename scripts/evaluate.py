@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evaluate any of the five methods with the frozen exact-combination protocol."""
+"""Evaluate any registered method with the frozen exact-combination protocol."""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +18,7 @@ def main(argv=None):
     parser.add_argument("--split", choices=("valid", "test"), required=True,
                         help="Explicit held-out split; test rejects smoke/subset configurations")
     parser.add_argument("--output-dir", required=True, help="New evaluation directory, relative to compared_methods")
-    parser.add_argument("--source-run", help="Read-only Yu/Nakazawa trained run; defaults to config output_dir")
+    parser.add_argument("--source-run", help="Read-only Yu/Nakazawa/WaPIRL trained run; defaults to config output_dir")
     parser.add_argument("--ks", type=int, nargs="+", help="Cutoffs; formal default 1 5 10 20 50 100 500, smoke 1 5 10 20")
     parser.add_argument("--variant", choices=("global", "predicted_class"), default="global",
                         help="Yu global is the main comparison; predicted_class is a separate auxiliary result")
@@ -26,13 +26,16 @@ def main(argv=None):
     parser.add_argument("--workers", type=int, default=1, help="Workers for handcrafted feature preparation")
     parser.add_argument("--rank-workers", type=int, default=1,
                         help="Processes for full-candidate query ranking; bounded queue, preserves query order")
+    parser.add_argument("--exclude-exact", action="store_true",
+                        help="Independent coverage experiment: remove same-label combinations BEFORE ranking")
     args = parser.parse_args(argv)
     from shared.common import load_config
     from shared.evaluation import run_evaluation
     config = load_config(args.config, require_ks=False)
     result = run_evaluation(config, args.output_dir, split_name=args.split, ks=args.ks,
                             source_run=args.source_run, variant=args.variant,
-                            device=args.device, workers=args.workers, rank_workers=args.rank_workers)
+                            device=args.device, workers=args.workers, rank_workers=args.rank_workers,
+                            exclude_exact=args.exclude_exact)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

@@ -507,3 +507,18 @@ printf 'Smoke outputs: %s\n' "$smoke_run"
 `evaluation/<method>/valid/metrics.json`。Yu 两个网络各更新 8 次；Nakazawa 仅训练
 1 个 batch 并监测 1 个 valid batch。即使输出训练完成标记，也仅指 smoke 配置完成。
 代码或配置签名变化后重新运行到新目录，不复用旧训练产物来绕过签名检查。
+
+## 11 WaPIRL（F 对齐的整图适配）
+
+第六个方法见 [WaPIRL README](../methods/wapirl/README.md)。整图三通道输入、模型与增强、
+训练 NCE 与 F 对齐；取消区域提取，按 h512 截断余弦直接匹配。输入通道的整图适配由用户确认。
+
+```bash
+python -u methods/wapirl/wapirl.py --config methods/wapirl/config.json --device cuda
+python -u scripts/evaluate.py --config methods/wapirl/config.json --split valid --output-dir artifacts/wapirl_valid_v1 --device cuda
+python -u scripts/evaluate.py --config methods/wapirl/config.json --split test --output-dir artifacts/wapirl_test_v1 --device cuda
+```
+
+训练续跑追加 `--resume`；正式评价固定使用最低 valid NCE checkpoint，要求100轮训练完成。
+若训练时以 `--output-dir` 指定其他目录，评价时以 `--source-run` 指向它。每次评价另用新输出目录。
+smoke 将配置换为 `methods/wapirl/smoke.json`，仅可评价 valid，不运行 test。

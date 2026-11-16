@@ -18,14 +18,15 @@ import numpy as np
 
 from . import common
 from . import coverage_metrics
+from .cross_combination import CrossCombinationPool, CANDIDATE_RULE
 from .common import hash_file, read_json, save_json, signature
 from .retrieval_protocol import protocol_file_hashes
 from .exact_metrics import DEFAULT_KS, METRIC_VERSION, evaluate_rankings
 from .evaluation_adapters import prepare_method
 
 
-METHODS = ("wu", "yu", "wbbs", "nakazawa", "wmhd")
-TRAINED_METHODS = ("yu", "nakazawa")
+METHODS = ("wu", "yu", "wbbs", "nakazawa", "wmhd", "wapirl")
+TRAINED_METHODS = ("yu", "nakazawa", "wapirl")
 SMOKE_KS = (1, 5, 10, 20)
 RUNNER_VERSION = "unified-evaluation-v1"
 TIE_POLICY = "SHA256(exact_v1:tie:seed:query_id:candidate_id), first 8 bytes big-endian; ID collision fallback"
@@ -134,7 +135,14 @@ def validate_training_source(bundle, config, source_record, variant="global"):
         raise ValueError("Training data identity differs from evaluation data identity")
     smoke = bool(config.get("smoke", False))
     provenance = {**source_record, "smoke_training": smoke, "files": {}}
-    if config["method"] == "yu":
+    if config["method"] == "wapirl":
+        from methods.wapirl import wapirl
+        record = wapirl.validate_source(bundle, config, source_record["base_signature"])
+        checkpoint_signature = wapirl.checkpoint_signature(bundle, source_record["base_signature"])
+        provenance.update(selection="minimum_valid_nce", training_complete=True, record=record)
+        provenance["files"] = {name: hash_file(folder / name) for name in
+                               ("training_complete.json", "last.pt", "best_nce.pt")}
+    elif config["method"] == "yu":
         from methods.yu import yu
         checkpoint_signature = signature({"run": source_record["base_signature"],
                                           "data": bundle.signature, "method": yu.METHOD_VERSION})
@@ -250,7 +258,7 @@ def _check_request(config, split_name, ks, variant, workers, tie_seed):
 
 
 def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_run=None,
-                   variant="global", device=None, workers=1, tie_seed=2026, rank_workers=1):
+                   variant="global", device=None, workers=1, tie_seed=2026, rank_workers=1, exclude_exact=False):
     """Evaluate one method using the frozen pool; never train or select on test."""
     config = dict(config)
     original_run = config["output_dir"]
@@ -259,7 +267,7 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
         raise ValueError("rank_workers must be a positive integer")
     if source_run is not None:
         if config["method"] not in TRAINED_METHODS:
-            raise ValueError("source_run is only needed for trained methods Yu/Nakazawa")
+            raise ValueError("source_run is only needed for trained methods Yu/Nakazawa/WaPIRL")
         source = Path(source_run).expanduser()
         config["output_dir"] = str((source if source.is_absolute() else common.ROOT / source).resolve())
     if device is not None:
@@ -274,6 +282,9 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
         data_config = {**config, "output_dir": str(output), "cache_dir": str(output / "raw_cache")}
         bundle = common.prepare_data(data_config)
         pool = common.make_retrieval_pool(bundle, data_config, split_name)
+        if exclude_exact:
+            pool = CrossCombinationPool(pool, bundle.labels)
+            common.save_csv(output / "protocol" / "cross_combination_candidates.csv", pool.audit, list(pool.audit[0]))
         if max(ks) > pool.candidates_per_query:
             raise ValueError("K exceeds the candidate count; select explicit smaller --ks for synthetic/debug data")
         checkpoint_signature, source_provenance = None, None
@@ -281,10 +292,12 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
             checkpoint_signature, source_provenance = validate_training_source(bundle, config, source_record, variant)
         files = [Path(__file__), Path(__file__).with_name("exact_metrics.py"),
                  Path(__file__).with_name("coverage_metrics.py"),
+                 Path(__file__).with_name("cross_combination.py"),
                  Path(__file__).with_name("evaluation_adapters.py"),
                  common.ROOT / "scripts" / "evaluate.py", Path(common.__file__),
                  common.PROTOCOL_SOURCE, common.RETRIEVAL_SOURCE, _method_path(config["method"])]
-        payload = {"runner_version": RUNNER_VERSION, "metric_version": METRIC_VERSION,
+        payload = {"runner_version": RUNNER_VERSION,
+            "metric_version": coverage_metrics.METRIC_VERSION if exclude_exact else METRIC_VERSION,
             "coverage_metric_version": coverage_metrics.METRIC_VERSION,
             "method": config["method"], "variant": variant, "split": split_name,
             "ks": ks, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
@@ -292,12 +305,14 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
             "sources": _source_hashes(config), "training_source": source_provenance,
             "code": {str(p.relative_to(common.ROOT)): hash_file(p) for p in files},
             "smoke": bool(config.get("smoke", False)), "query_count": len(pool),
-            "gallery_count": len(pool.gallery), "candidate_rule": "all_gallery_except_query",
+            "gallery_count": len(pool.gallery), "candidate_rule": CANDIDATE_RULE if exclude_exact else "all_gallery_except_query",
+            "derived_protocol": pool.metadata if exclude_exact else None,
             "execution": {"feature_workers": workers, "rank_workers": rank_workers,
                           "rank_start_method": "spawn" if rank_workers > 1 else "serial",
                           "max_pending_queries": 2 * rank_workers if rank_workers > 1 else 1},
             "candidates_per_query": pool.candidates_per_query,
-            "relevance": "exact equality of all eight defect labels",
+            "relevance": "directional coverage, excluding exact combinations" if exclude_exact else "exact equality of all eight defect labels",
+            "exact_reports": not exclude_exact,
             "ranking_limit": max(ks), "full_mAP_reported": False,
             "coverage_reports": True}
         eval_signature = signature(payload)
@@ -362,18 +377,26 @@ def run_evaluation(config, output_dir, *, split_name="valid", ks=None, source_ru
                         yield int(qid), ids[:max_k]
                         if number % 100 == 0 or number == len(pool):
                             print(f"{config['method']} {split_name}: {number}/{len(pool)} queries", flush=True)
-            result = evaluate_rankings(bundle, pool, rankings(), ks, destination, split_name=split_name,
-                metadata={"evaluation_signature": eval_signature, "method": config["method"],
-                          "variant": variant, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
-                          "smoke": bool(config.get("smoke", False)), "ranking_limit": max_k})
+            if exclude_exact:
+                # No exact positives remain. Do not emit a misleading exact report.
+                for _ in rankings():
+                    pass
+            else:
+                result = evaluate_rankings(bundle, pool, rankings(), ks, destination, split_name=split_name,
+                    metadata={"evaluation_signature": eval_signature, "method": config["method"],
+                              "variant": variant, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
+                              "smoke": bool(config.get("smoke", False)), "ranking_limit": max_k})
         ranking_path.with_suffix(".csv.tmp").replace(ranking_path)
         counts_path.with_suffix(".csv.tmp").replace(counts_path)
-        coverage_metrics.evaluate_rankings_file(
+        coverage_result = coverage_metrics.evaluate_rankings_file(
             bundle, pool, ranking_path, ks, destination, split_name=split_name,
             metadata={"method": config["method"],
                       "variant": variant, "tie_seed": tie_seed, "tie_policy": TIE_POLICY,
                       "smoke": bool(config.get("smoke", False)), "ranking_limit": max_k,
-                      "exact_metric_version": METRIC_VERSION})
+                      "exact_metric_version": METRIC_VERSION,
+                      **({"derived_protocol": pool.metadata} if exclude_exact else {})})
+        if exclude_exact:
+            result = coverage_result
         # Reject a concurrent source change rather than publishing mixed artifacts.
         if _source_hashes(config) != payload["sources"] or any(
                 hash_file(common.ROOT / name) != digest for name, digest in payload["code"].items()):

@@ -1,7 +1,7 @@
 # MixedWM38 晶圆检索方法复现
 
-本仓库独立实现并比较五种晶圆图检索方法：Wu、Yu、WBBS、Nakazawa CNN 和 WMHD。
-五种方法共享同一份去重数据划分、固定 query/gallery 和统一评价入口，方法本身保留各自的
+本仓库独立实现并比较六种晶圆图检索方法：Wu、Yu、WBBS、Nakazawa CNN、WMHD 和 WaPIRL。
+六种方法共享同一份去重数据划分、固定 query/gallery 和统一评价入口，方法本身保留各自的
 特征、模型和相似度定义。
 
 当前统一评价同时写出两类独立报告。第一类 `exact_v1` 要求查询与候选的八维缺陷标签组合完全相同，
@@ -21,7 +21,7 @@
 
 需要逐方法运行时，先读运行指南；需要判断某个结果能否用于论文比较时，先读统一评价说明。
 
-## 五种方法
+## 六种方法
 
 | 方法 | 是否需要训练 | 检索表示／分数 | 实现与说明 |
 | --- | --- | --- | --- |
@@ -30,8 +30,9 @@
 | WBBS (2023) | 否 | 张量投票、点描述子和加权最佳伙伴相似度 | [代码](methods/wbbs/wbbs.py) · [说明](methods/wbbs/README.md) |
 | Nakazawa CNN (2018) | 是 | 256 维 sigmoid 特征二值化后用 Hamming 距离 | [代码](methods/nakazawa/nakazawa.py) · [说明](methods/nakazawa/README.md) |
 | WMHD (2020) | 否 | mountain 密度和方向性加权 Hausdorff 距离 | [代码](methods/wmhd/wmhd.py) · [说明](methods/wmhd/README.md) |
+| WaPIRL（F 对齐整图适配） | 是 | 整图 ResNet18 h512、截断余弦相似度 | [代码](methods/wapirl/wapirl.py) · [说明](methods/wapirl/README.md) |
 
-三个无训练方法不需要 checkpoint。Yu 和 Nakazawa 必须先完成各自训练，统一评价只读其来源运行，
+三个无训练方法不需要 checkpoint。Yu、Nakazawa 和 WaPIRL 必须先完成各自训练，统一评价只读其来源运行，
 不会隐式训练或替换 checkpoint。论文没有公开的参数和流程细节在对应方法 README 中单独标为实现约定，
 不宣称逐行恢复作者源码。
 
@@ -104,7 +105,7 @@ Wu 还保留欧氏距离作为 NCC 重排的次排序键。Wu 的粗筛不会补
 scripts/evaluate.py
   └─ shared/evaluation.py
       ├─ shared/common.py              数据与冻结检索池
-      ├─ shared/evaluation_adapters.py 五方法特征、分数和排序适配
+      ├─ shared/evaluation_adapters.py 六方法特征、分数和排序适配
       ├─ shared/exact_metrics.py       exact_v1 指标与汇总
       └─ shared/coverage_metrics.py    coverage_v1 指标与汇总
 ```
@@ -142,7 +143,7 @@ python -m unittest discover -s tests -v
 
 ```text
 compared_methods/
-├── methods/          五种方法的代码、配置和方法 README
+├── methods/          六种方法的代码、配置和方法 README
 ├── shared/           数据协议、检索池、统一 runner、适配器和指标
 ├── scripts/          协议生成与统一评价入口
 ├── protocol/         去重划分和固定 query/gallery 清单
@@ -156,3 +157,8 @@ compared_methods/
 新增方法放在 `methods/<method_name>/`，实现自己的特征／分数接口，并复用 `shared/` 的数据协议和
 统一评价入口。方法 README 应说明论文依据、实现约定、限制、命令和产物；统一评价规则只在
 `docs/EXACT_EVALUATION.md` 维护，避免各方法重复定义指标。
+
+## 新增 WaPIRL 整图对比
+
+新增与 F 的模型、增强和 NCE 设置对齐的整图 WaPIRL，使用相同冻结协议及两类统一指标。
+输入适配、训练和评价命令见 [WaPIRL 说明](methods/wapirl/README.md)。

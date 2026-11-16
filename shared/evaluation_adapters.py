@@ -135,6 +135,8 @@ class PreparedMethod:
         elif self.method == "wmhd":
             from methods.wmhd.wmhd import score_candidates
             scores = score_candidates(self.data[qrow], (self.data[i] for i in rows), self.settings)
+        elif self.method == "wapirl":
+            scores = np.clip(self.data[rows] @ self.data[qrow], 0.0, 1.0)
         elif self.method == "nakazawa":
             from methods.nakazawa.nakazawa import score_candidates
             scores = score_candidates(self.data["codes"][qrow], self.data["codes"][rows])
@@ -180,7 +182,7 @@ def prepare_method(bundle, config, pool, destination, source_run_signature=None,
     No existing artifacts are reused or overwritten by this function.
     """
     method = config["method"]
-    if method not in ("wu", "yu", "wbbs", "nakazawa", "wmhd"):
+    if method not in ("wu", "yu", "wbbs", "nakazawa", "wmhd", "wapirl"):
         raise ValueError(f"Unsupported method: {method}")
     if variant not in ("global", "predicted_class") or (variant != "global" and method != "yu"):
         raise ValueError("predicted_class is only available for Yu")
@@ -251,7 +253,13 @@ def prepare_method(bundle, config, pool, destination, source_run_signature=None,
     else:
         execution_device = get_device(str(device if device is not None else config.get("device", "auto")))
         metadata["device"] = str(execution_device)
-        if method == "nakazawa":
+        if method == "wapirl":
+            from methods.wapirl import wapirl
+            data = wapirl.encode_maps(bundle, config, ids, execution_device)
+            _save_arrays(feature_path, sample_ids=ids, features=data)
+            metadata.update(checkpoint_sha256=hash_file(source / "best_nce.pt"),
+                            model_selection="minimum_valid_nce", similarity="clip(h512 cosine,0,1)")
+        elif method == "nakazawa":
             from methods.nakazawa import nakazawa
             model, execution_device = nakazawa.load_trained_model(bundle, config, device=execution_device)
             features, codes = nakazawa.encode_maps(model, bundle.maps, ids,

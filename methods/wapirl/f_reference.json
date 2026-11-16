@@ -1,0 +1,41 @@
+{
+  "wbm_retrieval/models.py": {
+    "sha256": "5119bee1055bfe22cf8da935688321d49fb193d69594dc97669a5a5428e70db2",
+    "symbols": [
+      "BasicBlock",
+      "Encoder",
+      "Projector"
+    ]
+  },
+  "experiments/proposed/_shared/ef_suite.py": {
+    "sha256": "1524b7ffa81e16f744bdd86184efa95f11dada9b86ed78da8ea7d719e80015c7",
+    "symbols": [
+      "build_model"
+    ]
+  },
+  "experiments/proposed/main/method.py": {
+    "sha256": "c24630e9673a618f8aac02f6516316eb7156cb9cf1771157fb28b13bb739c976",
+    "symbols": [
+      "MemoryBank",
+      "nce_loss"
+    ]
+  },
+  "wbm_retrieval/training.py": {
+    "sha256": "b6d611b8d72ea339327499191499d0a2766ec1cd504958cbfce46f1fb8762a17",
+    "symbols": [
+      "optimization",
+      "loader",
+      "load_checkpoint",
+      "save_checkpoint",
+      "restore",
+      "optimizer_to_device",
+      "validation_rng"
+    ]
+  },
+  "wbm_retrieval/regions.py": {
+    "sha256": "a1bd8ad2bc0c559539b725ced7c0c96ca97e4493e290bee8452679a5c0202b78",
+    "symbols": [
+      "resize_nearest"
+    ]
+  }
+}

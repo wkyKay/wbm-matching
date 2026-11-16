@@ -342,3 +342,24 @@ python compared_methods/tests/check_workers.py --workers 2
 - [Yu PCA/推断来源](../artifacts/yu_smoke/valid/provenance.json)、[Yu 检索记录](../artifacts/yu_smoke/valid/summary.json)。
 
 未收敛的 smoke 分数仅用于确认报告生成正常，不作为 Wu 与 Yu 的性能比较结论。
+
+## WaPIRL 整图方法接入（2026-11-11）
+
+- 新增 `methods/wapirl/`，模型、初始化、NCE、memory、优化器及 scheduler 基元从当前 F 冻结复制；
+  原文件哈希和符号记录在 `f_reference.json`，不依赖运行时导入 F 仓库。
+- 用户确认整图输入为缺陷/缺陷/有效晶圆三通道，完整原图最近邻缩放96，无区域划分或52窗口。
+- 新增6项回归：保留孤立点和全图边缘、三通道同步旋转与确定性、逐张量 F 初始化一致、
+  整图截断余弦排序、smoke 禁止 test、真实优化/memory 的断点恢复逐张量一致及 checkpoint 篡改拒绝。
+- 本地全套 **172 项通过**。服务器 Python3.10 / PyTorch2.4.0 / NVIDIA A30 全套 **172 项通过**。
+- CUDA smoke 完成：每类2张 train/valid、1轮、5000负样本；8个固定 query 交集、74 gallery、
+  每 query 73候选，Top20，共160条排名；统一 exact_v1 与 coverage_v1 报告及 completed.json 完整。
+- 远程原对比仓库为 `/data/wangkaiyan2024/wbm-matching`；本次部署独立新目录
+  `/data/wangkaiyan2024/compared_methods`，原仓库和 F 训练代码/旧产物未覆盖。
+- 正式运行目录：`artifacts/wapirl_f_aligned_v1`；评价目录 `wapirl_valid_v1`、`wapirl_test_v1`；
+  流程日志 `artifacts/wapirl_pipeline_20261111`。正式运行状态和结果见后续记录，smoke 不代表正式成绩。
+
+正式全流程已完成：100轮、9900次更新，最低valid NCE=1.811406688，第100轮；valid 500 query、
+test 7199 query，完整候选分别3598/7198。两类报告及completed.json完整，流程退出码0。
+独立复核7699个query、3849500条Top500排名的分数、exact/coverage逐query指标及总体均值和
+产物哈希通过；本地归档也按完成清单重新验哈希通过。
+详细数值与产物链接见 [正式结果报告](WAPIRL_RESULTS_20261111.md)。
