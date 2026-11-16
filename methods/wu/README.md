@@ -4,7 +4,7 @@
 
 这里独立实现论文的 WMSR 检索分支，不是作者原始代码。原论文研究 WM-811K；本实现把相同方法用于 MixedWM38，因此不把这里的结果称为原论文结果复现。SVM 分类属于独立的 WMFPR 分支，本任务不训练 SVM。
 
-五方法比较请使用[统一完整组合评价](../../docs/数据划分.md)的 `scripts/evaluate.py`。
+五方法比较请使用[统一完整组合评价](../../docs/项目说明.md#数据与评价)的 `scripts/evaluate.py`。
 它保留默认粗筛 500 和 NCC 重排，在粗筛边界及最终并列处使用统一 SHA-256 规则；
 下面的原方法 CLI 继续保留，旧原始 ID 并列结果不能与 exact_v1 混比。
 
@@ -75,4 +75,4 @@ valid 产物保存在运行输出根目录，test 产物单独保存在其 `test
 
 可单独验证的纯数组函数包括 `wafer_masks`、`radon_features`、`regional_features`、`statistical_features`、`hough_line_count`、`extract_features`、`largest_region`、`ncc_vector`、`ncc_score` 和 `rank_candidates`。
 
-本地真实数据 smoke、单/双进程一致性检查的执行日期、所用协议及范围见[验证记录](../../docs/history/20261116/验证记录.md)；旧协议验证不代表新协议已经完成性能评估。
+本地真实数据 smoke、单/双进程一致性检查的执行日期、所用协议及范围见[验证记录](https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E9%AA%8C%E8%AF%81%E8%AE%B0%E5%BD%95.md)；旧协议验证不代表新协议已经完成性能评估。

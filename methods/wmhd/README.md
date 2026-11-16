@@ -3,7 +3,7 @@
 本目录重实现 [Hsu et al., 2020](https://doi.org/10.1016/j.cie.2020.106358) 的
 mountain function 和方向性 WMHD，默认使用论文最终的 **W2-O1**。无需训练。
 方法 CLI 保留特征准备和打分范围；五方法统一 valid/test 及完整组合指标见
-[统一评价入口](../../docs/数据划分.md)。该入口保留 query → candidate 方向，以负距离排序，
+[统一评价入口](../../docs/项目说明.md#数据与评价)。该入口保留 query → candidate 方向，以负距离排序，
 允许边界情形的 `-inf` 最差分数，并使用 SHA-256 处理同分，不对距离做对称化。
 
 **复现边界：**Eq. (1)–(6) 已实现。论文 §3.2 提及 Cartesian–Polar 坐标变换，
@@ -103,7 +103,7 @@ O1 的计算只对 `L1 < matching_tolerance` 的有效点对累加 W0/W1/W2 权�
 query 点的最小加权距离。距离矩阵、严格阈值、九项权重累加顺序、原始 query 点数分母
 和 outlier 惩罚保持原式；O0 仍计算所有点对。这是等价的稀疏计算，所有候选图仍参与评分。
 已用密集公式回归及真实 valid 点数分位数样本确认分数逐位一致，详见
-[验证记录](../../docs/history/20261116/验证记录.md)。
+[验证记录](https://github.com/wkyKay/wbm-matching/blob/6074d3775bd734f7a42d776f1e192f919c51b6ca/docs/history/20261116/%E9%AA%8C%E8%AF%81%E8%AE%B0%E5%BD%95.md)。
 
 本地原文依据：`related_works/Hsu 等 - 2020 - Similarity matching of wafer bin maps for manufacturing intelligence to empower Industry 3.5 for sem.pdf`
 §3.2–3.3、Eq. (1)–(6)、§4.2；参数补充来源为同目录的 Lee 2021 全文 §IV-C。
