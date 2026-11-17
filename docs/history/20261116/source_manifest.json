@@ -1,7 +1,6 @@
 [
   {
     "original": "docs/CROSS_COMBINATION_COVERAGE.md",
-    "archive": "docs/history/20261116/跨组合方案.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "98f9839f6b906ac62088fa5c1c5239a6020afa0421aa330cae03b0148221ee98",
     "current_topic": "docs/项目说明.md",
@@ -9,37 +8,45 @@
     "sources": "shared/cross_combination.py；后续 artifacts/cross_coverage_seven_test_20261111_v1/",
     "followup": "“正式结果尚未产生”只代表当时；七方法已完成，使用旧径向面积 F。",
     "artifact_references": [],
-    "current_section": "数据与评价",
+    "current_section": "跨组合评价",
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/跨组合方案.md",
       "sha256": "294bcf6e37763c3386f40ee698e58fef1501ddb660205ee1eb47f721211b2951"
     },
-    "local_copy_sha256": "3dc8ecee59437e1493e1f253a520bd9781ede126e28898bcd3cbd46493d49426",
-    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
+    "removed_archive": "docs/history/20261116/跨组合方案.md",
+    "removed_copy_sha256": "3dc8ecee59437e1493e1f253a520bd9781ede126e28898bcd3cbd46493d49426",
+    "consolidation": {
+      "date": "2026-11-17",
+      "status": "integrated_and_removed",
+      "note": "正文已整合到current_topic及current_section；removed_archive和archived_report.path仅记录历史路径，不表示当前文件存在。原始实验产物未删除。"
+    }
   },
   {
     "original": "docs/CROSS_COVERAGE_SEVEN_TEST_20261111.md",
-    "archive": "docs/history/20261116/七方法跨组合结果.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "9d3b96a10943e4ab5cba21493968a4ab51672a47bb55487a0ebefdd24e8da174",
-    "current_topic": "docs/项目说明.md",
+    "current_topic": "docs/对比方法实验结果.md",
     "scope": "2026-11-11 七方法跨组合 test，2026-11-16 确认完成。",
     "sources": "artifacts/cross_coverage_seven_test_20261111_v1/；登记 key cross_*",
     "followup": "完成状态有效；其中 F 是旧径向面积来源，候选池与普通 test 不同。",
     "artifact_references": [],
-    "current_section": "实验结果",
+    "current_section": "跨组合检索的结论",
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/七方法跨组合结果.md",
       "sha256": "ec98e744a68eb43f456a3e6b5e9b06bc1535a5719de542d0a033ea93ed2ee09f"
     },
-    "local_copy_sha256": "0b012b23ee4857435089f724ced99544a9471e0cb0583455755a945f17b96258",
-    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
+    "removed_archive": "docs/history/20261116/七方法跨组合结果.md",
+    "removed_copy_sha256": "0b012b23ee4857435089f724ced99544a9471e0cb0583455755a945f17b96258",
+    "consolidation": {
+      "date": "2026-11-17",
+      "status": "integrated_and_removed",
+      "note": "正文已整合到current_topic及current_section；removed_archive和archived_report.path仅记录历史路径，不表示当前文件存在。原始实验产物未删除。"
+    }
   },
   {
     "original": "docs/EXACT_EVALUATION.md",
-    "archive": "docs/history/20261116/统一评价规则.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "71cdf2414233413e1cd4446291186773f8bc1316f9718d0bb229d7e652f9b134",
     "current_topic": "docs/项目说明.md",
@@ -53,12 +60,16 @@
       "path": "docs/history/20261116/统一评价规则.md",
       "sha256": "e8b3f7391b88cc2f48ae1b2184bc4d87c926d720198aaa6190b2917f62c70aad"
     },
-    "local_copy_sha256": "65ae694c63102cc26e5108eec95c765bbcc634d5a73fcb0afba3b3e4c3b80930",
-    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
+    "removed_archive": "docs/history/20261116/统一评价规则.md",
+    "removed_copy_sha256": "65ae694c63102cc26e5108eec95c765bbcc634d5a73fcb0afba3b3e4c3b80930",
+    "consolidation": {
+      "date": "2026-11-17",
+      "status": "integrated_and_removed",
+      "note": "正文已整合到current_topic及current_section；removed_archive和archived_report.path仅记录历史路径，不表示当前文件存在。原始实验产物未删除。"
+    }
   },
   {
     "original": "docs/RESULTS_CATALOG.md",
-    "archive": "docs/history/20261116/结果登记说明.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "5eeba289f8c887225506290e5ad169df16b662efd42f2adc81e6f75680244a16",
     "current_topic": "docs/项目说明.md",
@@ -66,18 +77,22 @@
     "sources": "主项目 results_catalog/，不是本仓库第二套登记",
     "followup": "统一登记目录不变，中文主题页提供更简短的入口。",
     "artifact_references": [],
-    "current_section": "实验结果",
+    "current_section": "保存与登记",
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/结果登记说明.md",
       "sha256": "33b951abc671e80c76af952502808ee3eaa2c0a5ecb80156b89d33be4a09796d"
     },
-    "local_copy_sha256": "2f8fda191b8c6cc405c8a97457761b87ad0cf1b42d189fdceab5051e7eab241a",
-    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
+    "removed_archive": "docs/history/20261116/结果登记说明.md",
+    "removed_copy_sha256": "2f8fda191b8c6cc405c8a97457761b87ad0cf1b42d189fdceab5051e7eab241a",
+    "consolidation": {
+      "date": "2026-11-17",
+      "status": "integrated_and_removed",
+      "note": "正文已整合到current_topic及current_section；removed_archive和archived_report.path仅记录历史路径，不表示当前文件存在。原始实验产物未删除。"
+    }
   },
   {
     "original": "docs/RUN_GUIDE.md",
-    "archive": "docs/history/20261116/旧版运行指南.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "e9eb20768217041f1c3d7d4603be4d1630d2ff3d3d63d14213cdb32b9c9a4df8",
     "current_topic": "docs/项目说明.md",
@@ -91,8 +106,13 @@
       "path": "docs/history/20261116/旧版运行指南.md",
       "sha256": "36ca3e35aecfa7eccd14244ae5d71ed68c9812411c51ed20c3730ecbb1f1e8eb"
     },
-    "local_copy_sha256": "4c3d99b1f1d882b09e9b03f5faf360c0ce530fafd27b59565238bc55468ca826",
-    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
+    "removed_archive": "docs/history/20261116/旧版运行指南.md",
+    "removed_copy_sha256": "4c3d99b1f1d882b09e9b03f5faf360c0ce530fafd27b59565238bc55468ca826",
+    "consolidation": {
+      "date": "2026-11-17",
+      "status": "integrated_and_removed",
+      "note": "正文已整合到current_topic及current_section；removed_archive和archived_report.path仅记录历史路径，不表示当前文件存在。原始实验产物未删除。"
+    }
   },
   {
     "original": "docs/VALIDATION.md",
@@ -267,21 +287,20 @@
         "availability": "仅本地"
       }
     ],
-    "current_section": "实验结果",
+    "current_section": "验证与文档整理",
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/验证记录.md",
       "sha256": "1706db666d4b19fc4b4fc827c0567dd8c6a7f6c95385253589100d77052e7ffe"
     },
-    "local_copy_sha256": "fbec396d76ea5025018ecfd57ef76d7fe2ca5101ed971c9a85247b0152b34f42",
+    "local_copy_sha256": "318f3391455f9027c92fcb47a6d935a6c3664d34da1d3ea0d0b152b61c19614b",
     "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
   },
   {
     "original": "docs/WAPIRL_RESULTS_20261111.md",
-    "archive": "docs/history/20261116/WaPIRL整图结果.md",
     "original_commit": "cc46cd713e133bde2e62ed9db55a4313f3444f50",
     "original_sha256": "3accada8e3c01c9c5ba448a4a749a7caa7acc6048f2062df8c6870f458be4a17",
-    "current_topic": "docs/项目说明.md",
+    "current_topic": "docs/对比方法实验结果.md",
     "scope": "F 对齐的整图 WaPIRL 适配；100 epoch，best_nce 第100轮。",
     "sources": "artifacts/wapirl_f_aligned_v1/、wapirl_valid_v1/、wapirl_test_v1/；登记 key wapirl_valid、wapirl_test",
     "followup": "固定结果仍有效；不包含后续与 F 的融合，不宣称原论文所有设置原样复现。",
@@ -329,13 +348,18 @@
         "availability": "本地和服务器"
       }
     ],
-    "current_section": "实验结果",
+    "current_section": "数据来源与完整性",
     "archived_report": {
       "commit": "6074d3775bd734f7a42d776f1e192f919c51b6ca",
       "path": "docs/history/20261116/WaPIRL整图结果.md",
       "sha256": "35a7aa8a4ff17b600ec30afccca9479dde3debea40caae1ab6ecb89e4ab37b05"
     },
-    "local_copy_sha256": "2a8db9dc6cb1dc6f93b11919df1372eeda4aba1634446c7d9ada5eedc2409d96",
-    "local_copy_note": "历史参考副本；只修正入口和引用，日常内容以项目说明为准"
+    "removed_archive": "docs/history/20261116/WaPIRL整图结果.md",
+    "removed_copy_sha256": "2a8db9dc6cb1dc6f93b11919df1372eeda4aba1634446c7d9ada5eedc2409d96",
+    "consolidation": {
+      "date": "2026-11-17",
+      "status": "integrated_and_removed",
+      "note": "正文已整合到current_topic及current_section；removed_archive和archived_report.path仅记录历史路径，不表示当前文件存在。原始实验产物未删除。"
+    }
   }
 ]
