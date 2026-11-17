@@ -19,7 +19,7 @@ def main(argv=None):
     parser.add_argument("--source-run", type=Path, required=True, help="Existing F suite root containing cache/ and seed_2026/")
     parser.add_argument("--output-dir", type=Path, required=True, help="Fresh directory, relative to compared_methods")
     parser.add_argument("--split", choices=("valid", "test"), required=True)
-    parser.add_argument("--ks", type=int, nargs="+", default=[1, 5, 10, 20, 50, 100, 500])
+    parser.add_argument("--ks", type=int, nargs="+", default=[1, 5, 10, 20, 50, 100])
     parser.add_argument("--device", default="auto")
     parser.add_argument("--seed", type=int, default=2026)
     args = parser.parse_args(argv)

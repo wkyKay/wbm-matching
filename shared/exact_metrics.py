@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 
 
-DEFAULT_KS = (1, 5, 10, 20, 50, 100, 500)
+DEFAULT_KS = (1, 5, 10, 20, 50, 100)
 METRIC_VERSION = "exact_v1"
 TIE_POLICY = (
     "ascending uint64 from the first 8 bytes (big-endian) of SHA-256 of "

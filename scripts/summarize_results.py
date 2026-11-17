@@ -14,7 +14,7 @@ BEGIN = "<!-- BEGIN GENERATED RESULTS -->"
 END = "<!-- END GENERATED RESULTS -->"
 METHODS = ("nakazawa", "wbbs", "yu", "wapirl", "wu", "wmhd")
 NAMES = dict(zip(METHODS, ("Nakazawa", "WBBS", "Yu", "WaPIRL", "Wu", "WMHD")))
-KS = (1, 5, 10, 20, 50, 100, 500)
+KS = (1, 5, 10, 20, 50, 100)
 EXACT = ("Hit", "Precision", "Recall", "mAP")
 COVERAGE = ("Coverage-nDCG", "MeanCoverage", "FullCoverageHit",
             "FullCoveragePrecision", "FullCoverageRecall", "FullCoverage_mAP")
@@ -23,7 +23,7 @@ GROUPS = {
     "single_label": "单缺陷", "mixed_label": "混合缺陷",
     **{f"by_label_count/{n}": f"标签数{n}" for n in range(1, 5)},
 }
-SCOPES = (("普通test", "test"), ("普通valid", "valid"), ("跨组合test", "cross"))
+SCOPES = (("普通test", "test"), ("跨组合test", "cross"))
 
 
 def key(method, scope):
@@ -48,7 +48,7 @@ def render():
         raise ValueError("Missing registered evaluations")
     data = {}
     for r in read_csv("metrics.csv"):
-        if r["key"] not in wanted:
+        if r["key"] not in wanted or int(r["K"]) not in KS:
             continue
         reg = registry[r["key"]]
         for field in ("run_id", "method", "split", "protocol"):
@@ -71,13 +71,12 @@ def render():
             run = key(method, scope)
             reg = registry[run]
             protocol = "coverage_cross_combination_v1" if scope == "cross" else "retrieval_v1"
-            if reg["protocol"] != protocol or reg["status"] != "report_hashes_verified":
+            if (reg["protocol"] != protocol or reg["split"] != "test"
+                    or reg["status"] != "report_hashes_verified"):
                 raise ValueError(f"Unverified or wrong protocol: {run}")
             metrics = COVERAGE if scope == "cross" else EXACT + COVERAGE
-            if scope == "valid" and method != "wapirl":
-                metrics = EXACT
             expected.update((run, g, metric, k) for g in GROUPS for metric in metrics for k in KS)
-    if set(data) != expected or len(data) != 7056:
+    if set(data) != expected:
         raise ValueError("Incomplete or unexpected metric coverage; update the report scope explicitly")
 
     def value(method, scope, group, metric, k):
@@ -86,7 +85,7 @@ def render():
     def fmt(v):
         return "—" if v is None else f"{v * 100:.4f}"
 
-    out = [f"数据校验：18项评价，{len(data):,}条指标。源文件SHA-256：", ""]
+    out = [f"数据校验：{len(registry)}项test评价，{len(data):,}条指标记录。源文件SHA-256：", ""]
     for name in ("metrics.csv", "registry.csv", "snapshot.json"):
         out.append(f"- `{name}`：`{hashlib.sha256((CATALOG / name).read_bytes()).hexdigest()}`")
     out.append("")
@@ -113,7 +112,7 @@ def render():
         out += ["</details>", ""]
     out += ["## 全部输出指标", "",
             "以下按协议、split、group分别展开，逐方法给出全部K。"
-            "包含7,056条指标记录，不把缺失报告或无定义值填成0。FullCoverage的H/P/R/AP依次对应"
+            f"包含{len(data):,}条指标记录，不把缺失报告或无定义值填成0。FullCoverage的H/P/R/AP依次对应"
             "Hit、Precision、Recall、mAP；nDCG为Coverage-nDCG，MC为MeanCoverage。"
             "宏平均按原报告读取，不用总体值重新估算。", ""]
     for label, scope in SCOPES:
@@ -140,7 +139,7 @@ def main():
     if args.check:
         if current != expected:
             raise SystemExit("Result tables are stale; run scripts/summarize_results.py")
-        print("OK: 18 verified evaluations, 7,056 metrics, generated tables match")
+        print("OK: test-only evaluations at K=1/5/10/20/50/100; generated tables match")
     else:
         DOCUMENT.write_text(expected, encoding="utf-8")
         print(f"Updated {DOCUMENT}")

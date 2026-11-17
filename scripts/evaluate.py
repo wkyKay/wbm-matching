@@ -19,7 +19,7 @@ def main(argv=None):
                         help="Explicit held-out split; test rejects smoke/subset configurations")
     parser.add_argument("--output-dir", required=True, help="New evaluation directory, relative to compared_methods")
     parser.add_argument("--source-run", help="Read-only Yu/Nakazawa/WaPIRL trained run; defaults to config output_dir")
-    parser.add_argument("--ks", type=int, nargs="+", help="Cutoffs; formal default 1 5 10 20 50 100 500, smoke 1 5 10 20")
+    parser.add_argument("--ks", type=int, nargs="+", help="Cutoffs; formal default 1 5 10 20 50 100, smoke 1 5 10 20")
     parser.add_argument("--variant", choices=("global", "predicted_class"), default="global",
                         help="Yu global is the main comparison; predicted_class is a separate auxiliary result")
     parser.add_argument("--device", help="CPU/CUDA inference device; no training is performed")
